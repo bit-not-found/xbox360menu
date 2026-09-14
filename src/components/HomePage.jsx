@@ -1,0 +1,310 @@
+import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
+import Tile from './Tile'
+import { useConfig } from '../context/ConfigContext'
+
+const backAudio = new Audio('./assets/audio/Back.mp3')
+
+export default function HomePage() {
+  const { config, updateConfig } = useConfig()
+  const allGames = config.myGames || []
+  const tilesConfig = config.homeTiles || {}
+
+  const setTilesConfig = (newVal) => {
+    if (typeof newVal === 'function') {
+      updateConfig('homeTiles', newVal(tilesConfig))
+    } else {
+      updateConfig('homeTiles', newVal)
+    }
+  }
+
+  const [showListModal, setShowListModal] = useState(false)
+  const [listModalType, setListModalType] = useState('') // 'pins' or 'recent'
+
+  const [editingTileId, setEditingTileId] = useState(null)
+  const [editImgPath, setEditImgPath] = useState('')
+  const [editAppPath, setEditAppPath] = useState('')
+
+  const handleContextMenu = (e, tileId) => {
+    e.preventDefault()
+    if (['c1-r1', 'c1-r2', 'c1-r3'].includes(tileId)) return
+    setEditingTileId(tileId)
+    const config = tilesConfig[tileId] || {}
+    setEditImgPath(config.bg || '')
+    setEditAppPath(config.app || '')
+  }
+
+  const handleSaveTile = () => {
+    setTilesConfig(prev => ({
+      ...prev,
+      [editingTileId]: {
+        bg: editImgPath,
+        app: editAppPath
+      }
+    }))
+    setEditingTileId(null)
+  }
+
+  const handleOpenApp = (tileId) => {
+    if (tileId === 'c1-r1') {
+      const recent = [...allGames].sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
+      if (recent.length > 0 && recent[0].lastPlayed) {
+         launchGameFromHome(recent[0])
+      }
+      return
+    }
+    if (tileId === 'c1-r2') {
+      setListModalType('pins')
+      setShowListModal(true)
+      return
+    }
+    if (tileId === 'c1-r3') {
+      setListModalType('recent')
+      setShowListModal(true)
+      return
+    }
+
+    const config = tilesConfig[tileId]
+    if (!config || !config.app) return
+    
+    const appPath = config.app.trim()
+    if (appPath.toLowerCase().startsWith('http://') || appPath.toLowerCase().startsWith('https://')) {
+      window.open(appPath, '_blank')
+    } else {
+      try {
+        const { exec } = window.require('child_process')
+        const path = window.require('path')
+        const cwd = path.dirname(appPath)
+        exec(`start "" "${appPath}"`, { cwd }, (err) => {
+          if (err) console.error('Failed to launch:', err)
+        })
+      } catch(e) {
+        console.error('Failed to launch:', e)
+      }
+    }
+  }
+
+  const launchGameFromHome = (game) => {
+    if (game.exe) {
+      try {
+        const { exec } = window.require('child_process')
+        const path = window.require('path')
+        const cwd = path.dirname(game.exe)
+        exec(`start "" "${game.exe}"`, { cwd }, (err) => {
+          if (err) console.error('Failed to launch:', err)
+        })
+
+        const updatedGames = allGames.map(g => g.name === game.name ? { ...g, lastPlayed: Date.now() } : g)
+        updateConfig('myGames', updatedGames)
+      } catch(e) {}
+    }
+  }
+
+  const renderTile = (id, defaultLabel, defaultIcon) => {
+    const config = tilesConfig[id] || {}
+    let bgUrl = config.bg || ''
+    if (bgUrl) {
+      bgUrl = bgUrl.replace(/\\/g, '/')
+      if (bgUrl.match(/^[a-zA-Z]:/)) {
+        bgUrl = `file:///${bgUrl}`
+      }
+    }
+    const style = config.bg ? { backgroundImage: `url("${bgUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}
+    return (
+      <Tile 
+        label={!config.bg && defaultLabel ? defaultLabel : ''} 
+        icon={!config.bg && defaultIcon ? defaultIcon : null}
+        style={style}
+        onClick={() => handleOpenApp(id)}
+        onContextMenu={(e) => handleContextMenu(e, id)}
+      />
+    )
+  }
+
+  const handleFileChange = (e, setter) => {
+    const file = e.target.files[0]
+    if (file) {
+      setter(file.path)
+    }
+  }
+
+  const randomGames = useMemo(() => {
+    const shuffled = [...(allGames || [])].sort(() => 0.5 - Math.random())
+    return shuffled.slice(0, 5)
+  }, [allGames])
+
+  const renderRandomGameTile = (id, index) => {
+    const config = tilesConfig[id] || {}
+    if (config.bg || config.app) {
+      return renderTile(id)
+    }
+    const game = randomGames[index]
+    if (game) {
+      return (
+        <Tile 
+          className="game-tile-banner"
+          onClick={() => launchGameFromHome(game)}
+          onContextMenu={(e) => handleContextMenu(e, id)}
+        >
+          <img src={game.banner} alt={game.name} className="game-tile-img" />
+          <div className="game-tile-name">{game.name}</div>
+        </Tile>
+      )
+    }
+    return renderTile(id)
+  }
+
+  return (
+    <>
+      <div className="home-grid">
+        {/* Column 1 - Left */}
+        <div className="home-c1-r1">
+          {(() => {
+            const recent = [...(allGames || [])].sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
+            const lastGame = recent.length > 0 && recent[0].lastPlayed ? recent[0] : null
+            if (lastGame) {
+              return (
+                <Tile 
+                  label={lastGame.name}
+                  icon={<img src="./assets/icons/controller.png" alt="Play Game" />}
+                  style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("${lastGame.banner}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                  onClick={() => handleOpenApp('c1-r1')}
+                  onContextMenu={(e) => handleContextMenu(e, 'c1-r1')}
+                />
+              )
+            }
+            return renderTile('c1-r1', 'Play Game', <img src="./assets/icons/controller.png" alt="Play Game" />)
+          })()}
+        </div>
+        <div className="home-c1-r2">
+          {renderTile('c1-r2', 'My Pins', <img src="./assets/icons/pin.png" alt="My Pins" />)}
+        </div>
+        <div className="home-c1-r3">
+          {renderTile('c1-r3', 'Recente', <img src="./assets/icons/clock.png" alt="Recente" />)}
+        </div>
+
+        {/* Center - ONE big tile 690x393 */}
+        <div className="home-center">
+          {renderTile('center')}
+        </div>
+
+        {/* Bottom middle tiles */}
+        <div className="home-c2-r3">
+          {renderRandomGameTile('c2-r3', 0)}
+        </div>
+        <div className="home-c3-r3">
+          {renderRandomGameTile('c3-r3', 1)}
+        </div>
+
+        {/* Column 4 - Right */}
+        <div className="home-c4-r1">
+          {renderRandomGameTile('c4-r1', 2)}
+        </div>
+        <div className="home-c4-r2">
+          {renderRandomGameTile('c4-r2', 3)}
+        </div>
+        <div className="home-c4-r3">
+          {renderRandomGameTile('c4-r3', 4)}
+        </div>
+      </div>
+
+      {editingTileId && createPortal(
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>Customize Tile</h2>
+
+            <label>Background Image Path</label>
+            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+              <input 
+                type="text" 
+                placeholder="C:\Images\background.jpg" 
+                value={editImgPath} 
+                onChange={(e) => setEditImgPath(e.target.value)} 
+                style={{ flex: 1 }}
+              />
+              <button className="modal-btn" onClick={async () => {
+                const { ipcRenderer } = window.require('electron')
+                const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }] })
+                if (res && !res.canceled && res.filePaths.length > 0) setEditImgPath(res.filePaths[0])
+              }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+            </div>
+
+            <label>Executable Path or URL</label>
+            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+              <input 
+                type="text" 
+                placeholder="C:\Games\game.exe" 
+                value={editAppPath} 
+                onChange={(e) => setEditAppPath(e.target.value)} 
+                style={{ flex: 1 }}
+              />
+              <button className="modal-btn" onClick={async () => {
+                const { ipcRenderer } = window.require('electron')
+                const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Executables', extensions: ['exe', 'bat', 'lnk'] }] })
+                if (res && !res.canceled && res.filePaths.length > 0) setEditAppPath(res.filePaths[0])
+              }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+            </div>
+
+            <div className="modal-actions" style={{marginTop: 20}}>
+              <button className="modal-btn cancel" onClick={() => setEditingTileId(null)}>Cancel</button>
+              <button className="modal-btn confirm" onClick={handleSaveTile}>Save</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* List Modal for Pins and Recents */}
+      {showListModal && createPortal(
+        <div className="mygames-overlay">
+          <div className="mygames-header">
+            <h2>{listModalType === 'pins' ? 'My Pins' : 'Recente'}</h2>
+            <button className="video-player-close" onClick={() => {
+              backAudio.currentTime = 0
+              backAudio.play().catch(() => {})
+              setShowListModal(false)
+            }}>✕</button>
+          </div>
+          <div className="mygames-cards-scroll">
+            {(() => {
+              let displayGames = []
+              if (listModalType === 'pins') {
+                displayGames = (allGames || []).filter(g => g.isPinned)
+              } else {
+                displayGames = [...(allGames || [])].filter(g => g.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 5)
+              }
+
+              if (displayGames.length === 0) {
+                return <div style={{ color: '#fff', fontSize: '18px', padding: 20 }}>No games to show here.</div>
+              }
+
+              return displayGames.map((game) => (
+                <div
+                  key={game.name}
+                  className="game-card"
+                  onClick={() => { launchGameFromHome(game); setShowListModal(false); }}
+                >
+                  <div className="game-card-img">
+                    <img src={game.icon} alt={game.name} />
+                  </div>
+                  <div className="game-card-info">
+                    <div className="game-card-title">{game.name}</div>
+                    <div className="game-card-stars" style={{ fontSize: '24px', letterSpacing: '2px', color: '#ffb400', marginTop: '5px', marginBottom: '5px' }}>
+                      {'★'.repeat(game.stars || 0) + '☆'.repeat(5 - (game.stars || 0))}
+                    </div>
+                    <div className="game-card-platform">
+                      <span className="game-card-platform-icon">🎮</span> PC
+                    </div>
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+
