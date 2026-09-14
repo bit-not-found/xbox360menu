@@ -19,12 +19,12 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  overflow: hidden;
-  /* Hide scrollbars for the dashboard feel */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #root {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
 }
 

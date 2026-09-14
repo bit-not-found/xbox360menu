@@ -2,8 +2,17 @@ import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import { useConfig } from '../context/ConfigContext'
+import { isElectron } from '../utils/electron'
 
 const backAudio = new Audio('./assets/audio/Back.mp3')
+
+const subdomains = [
+  { id: 'ludaba', label: 'Ludaba', url: 'https://ludaba.panashe.co.za', icon: './assets/icons/controller.png' },
+  { id: 'dash', label: 'Dashboard', url: 'https://dash.panashe.co.za', icon: './assets/icons/system.png' },
+  { id: 'games', label: 'Games', url: 'https://games.panashe.co.za', icon: './assets/icons/controller.png' },
+  { id: 'blog', label: 'Blog', url: 'https://blog.panashe.co.za', icon: './assets/icons/pin.png' },
+  { id: 'desktop', label: 'Desktop', url: 'https://desktop.panashe.co.za', icon: './assets/icons/Preferences.png' },
+]
 
 export default function HomePage() {
   const { config, updateConfig } = useConfig()
@@ -64,13 +73,13 @@ export default function HomePage() {
       return
     }
 
-    const config = tilesConfig[tileId]
-    if (!config || !config.app) return
+    const tileConfig = tilesConfig[tileId]
+    if (!tileConfig || !tileConfig.app) return
     
-    const appPath = config.app.trim()
+    const appPath = tileConfig.app.trim()
     if (appPath.toLowerCase().startsWith('http://') || appPath.toLowerCase().startsWith('https://')) {
       window.open(appPath, '_blank')
-    } else {
+    } else if (isElectron()) {
       try {
         const { exec } = window.require('child_process')
         const path = window.require('path')
@@ -85,7 +94,7 @@ export default function HomePage() {
   }
 
   const launchGameFromHome = (game) => {
-    if (game.exe) {
+    if (game.exe && isElectron()) {
       try {
         const { exec } = window.require('child_process')
         const path = window.require('path')
@@ -98,6 +107,10 @@ export default function HomePage() {
         updateConfig('myGames', updatedGames)
       } catch(e) {}
     }
+  }
+
+  const handleOpenSubdomain = (url) => {
+    window.open(url, '_blank')
   }
 
   const renderTile = (id, defaultLabel, defaultIcon) => {
@@ -124,7 +137,11 @@ export default function HomePage() {
   const handleFileChange = (e, setter) => {
     const file = e.target.files[0]
     if (file) {
-      setter(file.path)
+      if (isElectron()) {
+        setter(file.path)
+      } else {
+        setter(URL.createObjectURL(file))
+      }
     }
   }
 
@@ -152,6 +169,16 @@ export default function HomePage() {
       )
     }
     return renderTile(id)
+  }
+
+  const renderSubdomainTile = (subdomain) => {
+    return (
+      <Tile
+        label={subdomain.label}
+        icon={<img src={subdomain.icon} alt={subdomain.label} />}
+        onClick={() => handleOpenSubdomain(subdomain.url)}
+      />
+    )
   }
 
   return (
@@ -190,21 +217,21 @@ export default function HomePage() {
 
         {/* Bottom middle tiles */}
         <div className="home-c2-r3">
-          {renderRandomGameTile('c2-r3', 0)}
+          {renderSubdomainTile(subdomains[0])}
         </div>
         <div className="home-c3-r3">
-          {renderRandomGameTile('c3-r3', 1)}
+          {renderSubdomainTile(subdomains[1])}
         </div>
 
         {/* Column 4 - Right */}
         <div className="home-c4-r1">
-          {renderRandomGameTile('c4-r1', 2)}
+          {renderSubdomainTile(subdomains[2])}
         </div>
         <div className="home-c4-r2">
-          {renderRandomGameTile('c4-r2', 3)}
+          {renderSubdomainTile(subdomains[3])}
         </div>
         <div className="home-c4-r3">
-          {renderRandomGameTile('c4-r3', 4)}
+          {renderSubdomainTile(subdomains[4])}
         </div>
       </div>
 
@@ -222,11 +249,16 @@ export default function HomePage() {
                 onChange={(e) => setEditImgPath(e.target.value)} 
                 style={{ flex: 1 }}
               />
-              <button className="modal-btn" onClick={async () => {
-                const { ipcRenderer } = window.require('electron')
-                const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }] })
-                if (res && !res.canceled && res.filePaths.length > 0) setEditImgPath(res.filePaths[0])
-              }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              {isElectron() ? (
+                <button className="modal-btn" onClick={async () => {
+                  const { ipcRenderer } = window.require('electron')
+                  const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }] })
+                  if (res && !res.canceled && res.filePaths.length > 0) setEditImgPath(res.filePaths[0])
+                }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              ) : (
+                <button className="modal-btn" onClick={() => document.getElementById('tile-bg-input')?.click()} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              )}
+              <input id="tile-bg-input" type="file" style={{ display: 'none' }} accept="image/*" onChange={(e) => handleFileChange(e, setEditImgPath)} />
             </div>
 
             <label>Executable Path or URL</label>
@@ -238,11 +270,16 @@ export default function HomePage() {
                 onChange={(e) => setEditAppPath(e.target.value)} 
                 style={{ flex: 1 }}
               />
-              <button className="modal-btn" onClick={async () => {
-                const { ipcRenderer } = window.require('electron')
-                const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Executables', extensions: ['exe', 'bat', 'lnk'] }] })
-                if (res && !res.canceled && res.filePaths.length > 0) setEditAppPath(res.filePaths[0])
-              }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              {isElectron() ? (
+                <button className="modal-btn" onClick={async () => {
+                  const { ipcRenderer } = window.require('electron')
+                  const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Executables', extensions: ['exe', 'bat', 'lnk'] }] })
+                  if (res && !res.canceled && res.filePaths.length > 0) setEditAppPath(res.filePaths[0])
+                }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              ) : (
+                <button className="modal-btn" onClick={() => document.getElementById('tile-app-input')?.click()} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
+              )}
+              <input id="tile-app-input" type="file" style={{ display: 'none' }} onChange={(e) => handleFileChange(e, setEditAppPath)} />
             </div>
 
             <div className="modal-actions" style={{marginTop: 20}}>

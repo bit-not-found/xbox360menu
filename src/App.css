@@ -1,8 +1,7 @@
 .dashboard {
   position: relative;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -138,7 +137,7 @@
 .main-content {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .dashboard.sliding .main-content {
@@ -147,7 +146,7 @@
 
 .pages-container {
   display: flex;
-  height: 100%;
+  min-height: 100%;
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform;
 }
@@ -155,7 +154,7 @@
 .page {
   min-width: 85vw;
   max-width: 85vw;
-  height: 100%;
+  min-height: 100%;
   padding: 20px 40px;
   box-sizing: border-box;
   display: flex;
@@ -212,6 +211,7 @@
     "c1r1  center  center  c4r1"
     "c1r2  center  center  c4r2"
     "c1r3  c2r3    c3r3    c4r3";
+  overflow: visible;
 }
 
 .home-c1-r1 {
@@ -716,16 +716,6 @@
 }
 
 /* ===== GAMES PAGE GRID ===== */
-.games-grid::-webkit-scrollbar {
-  height: 8px;
-}
-.games-grid::-webkit-scrollbar-track {
-  background: transparent;
-}
-.games-grid::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 4px;
-}
 
 .game-vertical-tile {
   width: 195px;
