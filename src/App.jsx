@@ -9,7 +9,8 @@ import GamesPage from './components/GamesPage'
 import MusicPage from './components/MusicPage'
 import AppsPage from './components/AppsPage'
 import AppWindow from './components/AppWindow'
-import XboxGuide from './components/XboxGuide'
+import GuideMenu from './components/GuideMenu'
+import Taskbar from './components/Taskbar'
 import './App.css'
 import { ConfigProvider } from './context/ConfigContext'
 
@@ -27,6 +28,7 @@ const settingsTiles = [
 
 const pageLeftAudio = new Audio('./assets/audio/Page Left.mp3')
 const pageRightAudio = new Audio('./assets/audio/Page Right.mp3')
+let appIdCounter = 0
 
 function Clock() {
   const [time, setTime] = useState(new Date())
@@ -52,8 +54,11 @@ function App() {
   const [showIntro, setShowIntro] = useState(true)
   const [isSliding, setIsSliding] = useState(false)
   const [entranceAnimation, setEntranceAnimation] = useState(false)
-  const [activeApp, setActiveApp] = useState(null)
+  const [openApps, setOpenApps] = useState([])
+  const [focusedAppId, setFocusedAppId] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
+
+  const focusedApp = openApps.find(a => a.id === focusedAppId) || null
 
   const finishIntro = () => {
     setShowIntro(false)
@@ -62,28 +67,48 @@ function App() {
 
   const handleCategoryChange = (index) => {
     if (index === activeCategory) return
-
     if (index > activeCategory) {
       pageRightAudio.currentTime = 0
-      pageRightAudio.play().catch(() => { })
+      pageRightAudio.play().catch(() => {})
     } else {
       pageLeftAudio.currentTime = 0
-      pageLeftAudio.play().catch(() => { })
+      pageLeftAudio.play().catch(() => {})
     }
-
     setActiveCategory(index)
     setIsSliding(true)
-    setTimeout(() => {
-      setIsSliding(false)
-    }, 500)
+    setTimeout(() => setIsSliding(false), 500)
   }
 
   const openApp = useCallback((app) => {
-    setActiveApp(app)
+    const existing = openApps.find(a => a.url === app.url)
+    if (existing) {
+      setFocusedAppId(existing.id)
+    } else {
+      const id = ++appIdCounter
+      setOpenApps(prev => [...prev, { ...app, id }])
+      setFocusedAppId(id)
+    }
+    setShowGuide(false)
+  }, [openApps])
+
+  const focusApp = useCallback((id) => {
+    setFocusedAppId(id)
+    setShowGuide(false)
   }, [])
 
-  const closeApp = useCallback(() => {
-    setActiveApp(null)
+  const minimizeApp = useCallback(() => {
+    setFocusedAppId(null)
+  }, [])
+
+  const closeApp = useCallback((id) => {
+    setOpenApps(prev => prev.filter(a => a.id !== id))
+    setFocusedAppId(prev => prev === id ? null : prev)
+  }, [])
+
+  const closeAllApps = useCallback(() => {
+    setOpenApps([])
+    setFocusedAppId(null)
+    setActiveCategory(0)
   }, [])
 
   const toggleGuide = useCallback(() => {
@@ -94,12 +119,6 @@ function App() {
     setShowGuide(false)
   }, [])
 
-  const quitToDashboard = useCallback(() => {
-    setActiveApp(null)
-    setShowGuide(false)
-    setActiveCategory(0)
-  }, [])
-
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       if (e.key === ' ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -108,12 +127,30 @@ function App() {
       }
       if (e.key === 'Escape') {
         e.preventDefault()
-        toggleGuide()
+        if (showGuide) {
+          closeGuide()
+        } else if (focusedAppId) {
+          minimizeApp()
+        } else {
+          toggleGuide()
+        }
+      }
+      if ((e.key === 'x' || e.key === 'X') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (showGuide && focusedAppId) {
+          closeApp(focusedAppId)
+          closeGuide()
+        }
+      }
+      if ((e.key === 'y' || e.key === 'Y') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (showGuide) {
+          closeAllApps()
+          closeGuide()
+        }
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [toggleGuide])
+  }, [toggleGuide, closeGuide, minimizeApp, closeApp, closeAllApps, showGuide, focusedAppId])
 
   return (
     <div className={`dashboard ${isSliding ? 'sliding' : ''} ${entranceAnimation ? 'animate-entrance' : ''}`}>
@@ -182,19 +219,33 @@ function App() {
         </div>
       </main>
 
-      {activeApp && (
-        <AppWindow app={activeApp} onClose={closeApp} />
+      {focusedApp && (
+        <AppWindow
+          key={focusedApp.id}
+          app={focusedApp}
+          onClose={() => closeApp(focusedApp.id)}
+          onMinimize={minimizeApp}
+        />
+      )}
+
+      {!focusedAppId && openApps.length > 0 && (
+        <Taskbar
+          apps={openApps}
+          focusedAppId={focusedAppId}
+          onFocusApp={focusApp}
+          onCloseApp={closeApp}
+        />
       )}
 
       {showGuide && (
-        <XboxGuide
+        <GuideMenu
           onClose={closeGuide}
-          onQuitToDashboard={quitToDashboard}
-          activeCategory={activeCategory}
-          categories={categories}
           onNavigate={handleCategoryChange}
-          activeApp={activeApp}
+          openApps={openApps}
+          focusedAppId={focusedAppId}
+          onFocusApp={focusApp}
           onCloseApp={closeApp}
+          onCloseAllApps={closeAllApps}
         />
       )}
     </div>

@@ -1274,471 +1274,424 @@
   to { transform: rotate(360deg); }
 }
 
-/* ===== XBOX GUIDE BLADE (Quick Action Center) ===== */
-.guide-overlay {
+/* ===== XBOX 360 GUIDE BLADE ===== */
+.g360-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   z-index: 400;
-  background: rgba(0, 0, 0, 0.5);
-  animation: guideOverlayEnter 0.3s ease forwards;
+  background: rgba(0, 0, 0, 0.6);
+  animation: g360OverlayIn 0.25s ease-out forwards;
 }
+.g360-overlay.closing { animation: g360OverlayOut 0.28s ease-in forwards; }
+@keyframes g360OverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes g360OverlayOut { from { opacity: 1; } to { opacity: 0; } }
 
-.guide-overlay.closing {
-  animation: guideOverlayExit 0.25s ease forwards;
-}
-
-@keyframes guideOverlayEnter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes guideOverlayExit {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.guide-blade {
+.g360-blade {
   position: fixed;
   top: 0;
   left: 0;
-  width: 380px;
+  width: 420px;
   height: 100vh;
-  background: linear-gradient(135deg, rgba(10, 10, 10, 0.97) 0%, rgba(15, 20, 15, 0.97) 100%);
-  backdrop-filter: blur(20px);
-  border-right: 2px solid #108710;
   display: flex;
   flex-direction: column;
   z-index: 401;
-  animation: guideBladeEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   overflow: hidden;
+  background:
+    linear-gradient(180deg,
+      rgba(18, 22, 18, 0.98) 0%,
+      rgba(12, 14, 12, 0.97) 40%,
+      rgba(8, 10, 8, 0.98) 100%
+    );
+  backdrop-filter: blur(30px) saturate(1.2);
+  border-right: 3px solid #107c10;
+  box-shadow:
+    4px 0 30px rgba(0, 0, 0, 0.7),
+    inset -1px 0 0 rgba(16, 124, 16, 0.15);
+  animation: g360BladeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+.g360-blade.g360-blade-closing { animation: g360BladeOut 0.28s cubic-bezier(0.55, 0, 1, 0.45) forwards; }
+@keyframes g360BladeIn { from { transform: translateX(-105%); } to { transform: translateX(0); } }
+@keyframes g360BladeOut { from { transform: translateX(0); } to { transform: translateX(-105%); } }
 
-.guide-blade.closing {
-  animation: guideBladeExit 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
-}
-
-@keyframes guideBladeEnter {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(0); }
-}
-
-@keyframes guideBladeExit {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
-}
-
-.guide-header {
+/* Header */
+.g360-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px 14px;
-  border-bottom: 2px solid rgba(16, 135, 16, 0.4);
+  padding: 14px 20px 12px;
+  background: linear-gradient(180deg, rgba(16, 124, 16, 0.12) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(16, 124, 16, 0.25);
   flex-shrink: 0;
 }
-
-.guide-xbox-logo {
+.g360-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ebebeb;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.g360-header-right {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
-.guide-xbox-text {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #108710;
-  text-shadow: 0 0 10px rgba(16, 135, 16, 0.3);
+.g360-clock {
+  font-size: 0.8rem;
+  color: #888;
 }
 
-.guide-profile-mini {
+/* Body: tabs + content */
+.g360-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Vertical tabs */
+.g360-tabs {
+  width: 72px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-y: auto;
+}
+.g360-tabs::-webkit-scrollbar { width: 0; }
+
+.g360-tab {
+  flex-shrink: 0;
+  height: 90px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+  transition: background 0.15s;
 }
-
-.guide-avatar-mini {
-  width: 26px;
-  height: 26px;
-  background: #ddd;
-  border: 2px solid #108710;
+.g360-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
-
-.guide-gamertag-mini {
+.g360-tab-active {
+  background: rgba(255, 255, 255, 0.12);
+}
+.g360-tab-active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 15%;
+  height: 70%;
+  width: 3px;
+  background: #107c10;
+  box-shadow: 0 0 8px rgba(16, 124, 16, 0.6);
+}
+.g360-tab-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
   font-size: 0.8rem;
-  color: #ccc;
-  font-weight: 500;
+  font-weight: 400;
+  color: #777;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+.g360-tab-active .g360-tab-label {
+  color: #107c10;
+  font-weight: 600;
 }
 
-.guide-gamerscore-mini {
-  font-size: 0.75rem;
-  color: #ffcc00;
-  font-weight: 700;
-}
-
-/* Scrollable content */
-.guide-content {
+/* Content panel */
+.g360-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
 }
+.g360-content::-webkit-scrollbar { width: 3px; }
+.g360-content::-webkit-scrollbar-track { background: transparent; }
+.g360-content::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
 
-.guide-content::-webkit-scrollbar {
-  width: 4px;
+/* List */
+.g360-list {
+  display: flex;
+  flex-direction: column;
 }
 
-.guide-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.guide-content::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 2px;
-}
-
-.guide-section {
-  padding: 14px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.guide-section:last-child {
-  border-bottom: none;
-}
-
-.guide-section-title {
-  margin: 0 0 10px 0;
-  font-size: 0.7rem;
+.g360-section-label {
+  padding: 10px 16px 4px;
+  font-size: 0.65rem;
   font-weight: 600;
   color: #555;
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
 
-/* Active App */
-.guide-active-app-section {
-  background: rgba(16, 135, 16, 0.08);
-  border-bottom: 1px solid rgba(16, 135, 16, 0.2);
-}
-
-.guide-active-app {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: rgba(16, 135, 16, 0.12);
-  border: 1px solid rgba(16, 135, 16, 0.25);
-}
-
-.guide-active-app-info {
+.g360-list-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;
-}
-
-.guide-active-app-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #108710;
-  flex-shrink: 0;
-  animation: guidePulse 2s ease-in-out infinite;
-}
-
-@keyframes guidePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.guide-active-app-name {
-  font-size: 0.9rem;
-  color: #ebebeb;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.guide-active-app-close {
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  color: #999;
+  padding: 10px 16px;
   cursor: pointer;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s, background 0.15s;
+  transition: background 0.12s;
+  border-left: 3px solid transparent;
+  min-height: 42px;
+}
+.g360-list-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.g360-selected {
+  background: #107c10 !important;
+  border-left-color: #107c10;
+}
+.g360-selected .g360-item-name {
+  color: #fff;
+  font-weight: 600;
+}
+.g360-selected .g360-item-arrow {
+  color: rgba(255, 255, 255, 0.8);
+}
+.g360-selected .g360-item-stars {
+  color: #fff;
+}
+.g360-selected .g360-item-dot {
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.g360-item-icon {
+  font-size: 1rem;
+  width: 24px;
+  text-align: center;
   flex-shrink: 0;
 }
 
-.guide-active-app-close:hover {
-  color: #ff4444;
-  background: rgba(255, 68, 68, 0.15);
-}
-
-/* Quick Nav Grid */
-.guide-nav-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-}
-
-.guide-nav-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 4px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #999;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.guide-nav-tile:hover {
-  background: rgba(16, 135, 16, 0.12);
-  color: #ebebeb;
-  border-color: rgba(16, 135, 16, 0.25);
-}
-
-.guide-nav-tile.active {
-  background: rgba(16, 135, 16, 0.18);
-  color: #108710;
-  border-color: rgba(16, 135, 16, 0.4);
-}
-
-.guide-nav-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.guide-nav-label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 500;
-}
-
-/* List items (reused) */
-.guide-list-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
-  margin: 2px 0;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.guide-list-item:hover {
-  background: rgba(16, 135, 16, 0.15);
-}
-
-.guide-list-thumb {
-  width: 34px;
-  height: 34px;
+.g360-item-thumb {
+  width: 32px;
+  height: 32px;
   overflow: hidden;
   flex-shrink: 0;
-  background: #222;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
 }
-
-.guide-list-thumb img {
+.g360-item-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.guide-list-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.guide-list-name {
+.g360-item-name {
   font-size: 0.85rem;
-  color: #ebebeb;
+  color: #ccc;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.guide-list-sub {
-  font-size: 0.7rem;
-  color: #ffcc00;
-  letter-spacing: 2px;
-}
-
-/* Subdomain chips */
-.guide-subdomain-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.guide-subdomain-chip {
-  padding: 5px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #bbb;
-  font-size: 0.75rem;
-  font-family: 'Segoe UI', sans-serif;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.guide-subdomain-chip:hover {
-  background: rgba(16, 135, 16, 0.15);
-  color: #ebebeb;
-  border-color: rgba(16, 135, 16, 0.3);
-}
-
-/* System controls */
-.guide-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.guide-control-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.guide-control-label {
-  font-size: 0.8rem;
-  color: #999;
-  min-width: 90px;
-}
-
-.guide-control-value {
-  font-size: 0.75rem;
-  color: #666;
-  min-width: 32px;
-  text-align: right;
-}
-
-.guide-volume-slider {
-  flex: 1;
-  height: 4px;
-  cursor: pointer;
-  accent-color: #108710;
-}
-
-/* Toggle switch */
-.guide-toggle {
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
-  background: #333;
-  border: none;
-  cursor: pointer;
-  position: relative;
-  transition: background 0.2s;
-  padding: 0;
-}
-
-.guide-toggle.on {
-  background: #108710;
-}
-
-.guide-toggle-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  transition: transform 0.2s;
-}
-
-.guide-toggle.on .guide-toggle-thumb {
-  transform: translateX(18px);
-}
-
-/* Quick actions grid */
-.guide-actions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
-
-.guide-action-tile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #bbb;
-  font-size: 0.8rem;
-  font-family: 'Segoe UI', sans-serif;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.guide-action-tile:hover {
-  background: rgba(16, 135, 16, 0.12);
-  color: #ebebeb;
-  border-color: rgba(16, 135, 16, 0.25);
-}
-
-/* Footer */
-.guide-footer {
-  padding: 14px 20px;
-  border-top: 2px solid rgba(16, 135, 16, 0.4);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.g360-item-arrow {
+  color: #107c10;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
-.guide-footer-btn {
+.g360-item-stars {
+  font-size: 0.7rem;
+  color: #ffb400;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.g360-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #107c10;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(16, 124, 16, 0.5);
+}
+
+.g360-active-app {
+  border-left-color: #107c10 !important;
+}
+
+.g360-item-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 16px;
-  border: none;
-  font-size: 0.9rem;
-  font-family: 'Segoe UI', sans-serif;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.g360-list-item:hover .g360-item-close {
+  opacity: 1;
+}
+.g360-item-close:hover {
+  color: #ff4444;
 }
 
-.guide-footer-btn:hover {
-  transform: scale(1.02);
+.g360-empty {
+  padding: 20px 16px;
+  color: #555;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
-.guide-footer-btn:active {
-  transform: scale(0.98);
+.g360-quit-item {
+  color: #ff6666;
 }
-
-.guide-quit-btn {
-  background: linear-gradient(135deg, #108710 0%, #0d6b0d 100%);
+.g360-quit-item .g360-item-name {
+  color: #ff6666;
+}
+.g360-quit-item.g360-selected {
+  background: #c42b2b !important;
+}
+.g360-quit-item.g360-selected .g360-item-name {
   color: #fff;
 }
 
-.guide-quit-btn:hover {
-  background: linear-gradient(135deg, #12a012 0%, #108710 100%);
-}
-
-.guide-footer-hint {
+/* Footer: button prompts */
+.g360-footer {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 20px;
+  padding: 10px 20px 12px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.4) 0%, transparent 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+.g360-prompt {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.g360-btn-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: 'Segoe UI', sans-serif;
+  color: #000;
+  flex-shrink: 0;
+}
+.g360-btn-a { background: #107c10; }
+.g360-btn-b { background: #c42b2b; }
+.g360-btn-x { background: #1a5cc8; }
+.g360-btn-y { background: #d4a017; }
+.g360-prompt-text {
+  font-size: 0.7rem;
+  color: #666;
+  letter-spacing: 0.3px;
 }
 
-.guide-shortcut-hint {
+/* ===== TASKBAR ===== */
+.taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.95) 0%, rgba(5, 5, 5, 0.98) 100%);
+  backdrop-filter: blur(15px);
+  border-top: 1px solid rgba(16, 124, 16, 0.2);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  z-index: 50;
+  animation: taskbarSlideUp 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes taskbarSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.taskbar-label {
   font-size: 0.7rem;
-  color: #444;
-  letter-spacing: 0.5px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.taskbar-apps {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  flex: 1;
+}
+
+.taskbar-apps::-webkit-scrollbar { height: 0; }
+
+.taskbar-app {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.taskbar-app:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.taskbar-app-focused {
+  background: rgba(16, 124, 16, 0.12);
+  border-color: rgba(16, 124, 16, 0.3);
+}
+
+.taskbar-app-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #107c10;
+  flex-shrink: 0;
+}
+
+.taskbar-app-name {
+  font-size: 0.8rem;
+  color: #ccc;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taskbar-app-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.taskbar-app:hover .taskbar-app-close {
+  opacity: 1;
+}
+
+.taskbar-app-close:hover {
+  color: #ff4444;
 }
 
