@@ -7,7 +7,7 @@ const selectAudio = new Audio('./assets/audio/Select.mp3')
 export default function AppWindow({ app, onClose }) {
   const [isClosing, setIsClosing] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(true)
   const [showNav, setShowNav] = useState(true)
   const navTimeout = useRef(null)
   const iframeRef = useRef(null)
