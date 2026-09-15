@@ -327,8 +327,17 @@ export default function GuideMenu({ onClose, onNavigate, openApps, focusedAppId,
     <div className={`g360-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className={`g360-blade ${isClosing ? 'g360-blade-closing' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="g360-header">
-          <span className="g360-title">Guide</span>
+          <div className="g360-header-left">
+            <span className="g360-title">Guide</span>
+          </div>
           <div className="g360-header-right">
+            <div className="g360-profile">
+              <div className="g360-avatar"></div>
+              <div className="g360-profile-info">
+                <span className="g360-gamertag">Player 1</span>
+                <span className="g360-gamerscore">G 10450</span>
+              </div>
+            </div>
             <Clock />
           </div>
         </div>

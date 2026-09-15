@@ -1,9 +1,10 @@
 .dashboard {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 @keyframes dashboardEntrance {
@@ -56,65 +57,15 @@
   z-index: 10;
 }
 
-.profile-info {
-  display: flex;
-  align-items: center;
-  justify-content: right;
-  gap: 15px;
-  margin-bottom: 20px;
-  margin-top: 20px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  background-color: #ddd;
-  border: 2px solid #fff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.dashboard-clock {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  margin-right: 20px;
-  text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
-}
-
-.clock-time {
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.clock-date {
-  font-size: 0.8rem;
-  opacity: 0.8;
-  text-transform: uppercase;
-}
-
-.gamertag {
-  font-size: 1.2rem;
-  font-weight: 600;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-}
-
-.gamerscore {
-  font-size: 1rem;
-  color: #ffcc00;
-  font-weight: bold;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-}
-
 .nav-menu {
   display: flex;
   justify-content: center;
-  gap: 60px;
-  font-size: 2rem;
+  gap: 50px;
+  font-size: 1.4rem;
   font-weight: 300;
   text-transform: lowercase;
-  margin-top: 20px;
-  margin-bottom: 20px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .nav-item {
@@ -137,7 +88,7 @@
 .main-content {
   flex: 1;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .dashboard.sliding .main-content {
@@ -146,7 +97,7 @@
 
 .pages-container {
   display: flex;
-  min-height: 100%;
+  height: 100%;
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform;
 }
@@ -154,8 +105,8 @@
 .page {
   min-width: 85vw;
   max-width: 85vw;
-  min-height: 100%;
-  padding: 20px 40px;
+  height: 100%;
+  padding: 12px 40px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -203,7 +154,7 @@
 .home-grid {
   display: grid;
   grid-template-columns: 260px 345px 345px 260px;
-  grid-template-rows: 195px 195px 195px;
+  grid-template-rows: 165px 165px 165px;
   gap: 3px;
   align-self: center;
   padding: 10px;
@@ -211,7 +162,7 @@
     "c1r1  center  center  c4r1"
     "c1r2  center  center  c4r2"
     "c1r3  c2r3    c3r3    c4r3";
-  overflow: visible;
+  overflow: hidden;
 }
 
 .home-c1-r1 {
@@ -258,7 +209,7 @@
 .tiles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 260px);
-  grid-template-rows: repeat(3, 195px);
+  grid-template-rows: repeat(3, 165px);
   gap: 3px;
   max-width: 80vw;
   align-self: center;
@@ -306,22 +257,22 @@
 
 .tile-label {
   position: absolute;
-  bottom: 15px;
-  left: 15px;
-  font-size: 1.1rem;
+  bottom: 10px;
+  left: 12px;
+  font-size: 0.9rem;
   font-weight: 400;
   z-index: 1;
 }
 
 .tile-icon {
-  font-size: 3rem;
+  font-size: 2.4rem;
   opacity: 0.8;
   z-index: 1;
 }
 
 .tile-icon img {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   object-fit: contain;
   filter: brightness(0) invert(1);
 }
@@ -378,8 +329,8 @@
 
 .apps-list {
   display: grid;
-  grid-template-columns: repeat(5, 195px);
-  grid-template-rows: repeat(3, 195px);
+  grid-template-columns: repeat(5, 165px);
+  grid-template-rows: repeat(3, 165px);
   gap: 3px;
 }
 
@@ -511,7 +462,7 @@
 .social-grid {
   display: grid;
   grid-template-columns: 260px;
-  grid-template-rows: repeat(3, 195px);
+  grid-template-rows: repeat(3, 165px);
   gap: 3px;
   align-self: center;
   padding: 10px;
@@ -965,7 +916,7 @@
 .music-grid {
   display: grid;
   grid-template-columns: repeat(4, 260px);
-  grid-template-rows: repeat(3, 195px);
+  grid-template-rows: repeat(3, 165px);
   gap: 5px;
   align-self: center;
   padding: 10px;
@@ -980,7 +931,7 @@
 .music-player-container {
   display: flex;
   justify-content: center;
-  margin-top: 10px;
+  margin-top: 5px;
 }
 
 .music-player-bar {
@@ -1338,10 +1289,42 @@
 .g360-header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+.g360-header-left {
+  display: flex;
+  align-items: center;
+}
+.g360-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.g360-avatar {
+  width: 28px;
+  height: 28px;
+  background-color: #ddd;
+  border: 2px solid #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+.g360-profile-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.g360-gamertag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ebebeb;
+}
+.g360-gamerscore {
+  font-size: 0.65rem;
+  color: #ffcc00;
+  font-weight: bold;
 }
 .g360-clock {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #888;
 }
 

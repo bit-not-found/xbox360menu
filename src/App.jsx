@@ -30,25 +30,6 @@ const pageLeftAudio = new Audio('./assets/audio/Page Left.mp3')
 const pageRightAudio = new Audio('./assets/audio/Page Right.mp3')
 let appIdCounter = 0
 
-function Clock() {
-  const [time, setTime] = useState(new Date())
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const dateStr = time.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })
-  const timeStr = time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-
-  return (
-    <div className="dashboard-clock">
-      <span className="clock-time">{timeStr}</span>
-      <span className="clock-date">{dateStr}</span>
-    </div>
-  )
-}
-
 function App() {
   const [activeCategory, setActiveCategory] = useState(0)
   const [showIntro, setShowIntro] = useState(true)
@@ -160,12 +141,6 @@ function App() {
       <div className="background-layer" style={{ backgroundImage: `url('./assets/bg.png')` }}></div>
 
       <header className="header">
-        <div className="profile-info">
-          <Clock />
-          <div className="avatar"></div>
-          <span className="gamertag">Player 1</span>
-          <span className="gamerscore">G 10450</span>
-        </div>
         <div className="nav-menu">
           {categories.map((cat, index) => (
             <div
