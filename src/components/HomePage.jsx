@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
+import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron } from '../utils/electron'
-
-const backAudio = new Audio('./assets/audio/Back.mp3')
 
 const subdomains = [
   { id: 'ludaba', label: 'Ludaba', url: 'https://ludaba.panashe.co.za', icon: './assets/icons/controller.png' },
@@ -14,7 +13,7 @@ const subdomains = [
   { id: 'desktop', label: 'Desktop', url: 'https://desktop.panashe.co.za', icon: './assets/icons/Preferences.png' },
 ]
 
-export default function HomePage({ onOpenApp }) {
+export default function HomePage({ onOpenApp, isActive }) {
   const { config, updateConfig } = useConfig()
   const allGames = config.myGames || []
   const tilesConfig = config.homeTiles || {}
@@ -299,54 +298,21 @@ export default function HomePage({ onOpenApp }) {
         document.body
       )}
 
-      {/* List Modal for Pins and Recents */}
-      {showListModal && createPortal(
-        <div className="mygames-overlay">
-          <div className="mygames-header">
-            <h2>{listModalType === 'pins' ? 'My Pins' : 'Recente'}</h2>
-            <button className="video-player-close" onClick={() => {
-              backAudio.currentTime = 0
-              backAudio.play().catch(() => {})
-              setShowListModal(false)
-            }}>✕</button>
-          </div>
-          <div className="mygames-cards-scroll">
-            {(() => {
-              let displayGames = []
-              if (listModalType === 'pins') {
-                displayGames = (allGames || []).filter(g => g.isPinned)
-              } else {
-                displayGames = [...(allGames || [])].filter(g => g.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 5)
-              }
-
-              if (displayGames.length === 0) {
-                return <div style={{ color: '#fff', fontSize: '18px', padding: 20 }}>No games to show here.</div>
-              }
-
-              return displayGames.map((game) => (
-                <div
-                  key={game.name}
-                  className="game-card"
-                  onClick={() => { launchGameFromHome(game); setShowListModal(false); }}
-                >
-                  <div className="game-card-img">
-                    <img src={game.icon} alt={game.name} />
-                  </div>
-                  <div className="game-card-info">
-                    <div className="game-card-title">{game.name}</div>
-                    <div className="game-card-stars" style={{ fontSize: '24px', letterSpacing: '2px', color: '#ffb400', marginTop: '5px', marginBottom: '5px' }}>
-                      {'★'.repeat(game.stars || 0) + '☆'.repeat(5 - (game.stars || 0))}
-                    </div>
-                    <div className="game-card-platform">
-                      <span className="game-card-platform-icon">🎮</span> PC
-                    </div>
-                  </div>
-                </div>
-              ))
-            })()}
-          </div>
-        </div>,
-        document.body
+      {/* Collection Page for Pins and Recents */}
+      {showListModal && (
+        <CollectionPage
+          title={listModalType === 'pins' ? 'My Pins' : 'Recent'}
+          items={(listModalType === 'pins'
+            ? (allGames || []).filter(g => g.isPinned)
+            : [...(allGames || [])].filter(g => g.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 5)
+          ).map(g => ({ ...g, id: g.name }))}
+          onClose={() => setShowListModal(false)}
+          onItemAction={(game) => { launchGameFromHome(game); setShowListModal(false); }}
+          showPinButton={listModalType === 'pins'}
+          filters={[{ label: 'pinned games' }]}
+          emptyMessage="No games to show here."
+          isActive={isActive}
+        />
       )}
     </>
   )

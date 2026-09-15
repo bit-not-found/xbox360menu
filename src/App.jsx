@@ -162,13 +162,13 @@ function App() {
           {categories.map((cat, index) => (
             <section key={cat} className={`page ${index !== activeCategory ? 'inactive' : ''}`}>
               {cat === 'home' ? (
-                <HomePage onOpenApp={openApp} />
+                <HomePage onOpenApp={openApp} isActive={index === activeCategory} />
               ) : cat === 'social' ? (
                 <SocialPage />
               ) : cat === 'media' ? (
-                <VideoPage />
+                <VideoPage isActive={index === activeCategory} />
               ) : cat === 'games' ? (
-                <GamesPage onOpenApp={openApp} />
+                <GamesPage onOpenApp={openApp} isActive={index === activeCategory} />
               ) : cat === 'music' ? (
                 <MusicPage />
               ) : cat === 'apps' ? (

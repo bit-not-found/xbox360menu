@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
+import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, getNodeChildProcess } from '../utils/electron'
 
 const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
-const backAudio = new Audio('./assets/audio/Back.mp3')
 
 const ROM_EXTENSIONS = /\.(nes|sfc|smc|gba|gb|gbc|gen|md|sms|gg|pce|ngp|ngpc|ws|wsc|lnx|jag|vb|col|sg)$/i
 
@@ -59,7 +59,7 @@ function detectSystem(filename) {
   return { ext, system: SYSTEM_CORE_MAP[ext] || 'fceumm', systemName: SYSTEM_NAMES[ext] || ext.toUpperCase() }
 }
 
-export default function GamesPage({ onOpenApp }) {
+export default function GamesPage({ onOpenApp, isActive }) {
   const { config, updateConfig } = useConfig()
   const games = config.myGames
   const romFolder = config.romFolder || ''
@@ -67,9 +67,7 @@ export default function GamesPage({ onOpenApp }) {
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showMyGames, setShowMyGames] = useState(false)
-  const [isClosingMyGames, setIsClosingMyGames] = useState(false)
   const [showMyRoms, setShowMyRoms] = useState(false)
-  const [isClosingMyRoms, setIsClosingMyRoms] = useState(false)
   const [newGameName, setNewGameName] = useState('')
   const [newGameExe, setNewGameExe] = useState('')
   const [previewIcon, setPreviewIcon] = useState(null)
@@ -346,10 +344,7 @@ export default function GamesPage({ onOpenApp }) {
   }
 
   const closeMyGames = () => {
-    backAudio.currentTime = 0
-    backAudio.play().catch(() => {})
-    setIsClosingMyGames(true)
-    setTimeout(() => { setShowMyGames(false); setIsClosingMyGames(false) }, 300)
+    setShowMyGames(false)
   }
 
   const openMyGames = () => {
@@ -359,10 +354,7 @@ export default function GamesPage({ onOpenApp }) {
   }
 
   const closeMyRoms = () => {
-    backAudio.currentTime = 0
-    backAudio.play().catch(() => {})
-    setIsClosingMyRoms(true)
-    setTimeout(() => { setShowMyRoms(false); setIsClosingMyRoms(false) }, 300)
+    setShowMyRoms(false)
   }
 
   const renderStars = (count) => {
@@ -519,100 +511,42 @@ export default function GamesPage({ onOpenApp }) {
 
       <input ref={romFolderInputRef} type="file" accept=".nes,.sfc,.smc,.gba,.gb,.gbc,.gen,.md,.sms,.gg,.pce,.ngp,.ngpc,.ws,.wsc,.lnx,.jag,.vb,.col,.sg" style={{ display: 'none' }} onChange={handleRomFileSelect} />
 
-      {/* MY GAMES FULL SCREEN */}
-      {showMyGames && createPortal(
-        <div className={`mygames-overlay ${isClosingMyGames ? 'closing' : ''}`}>
-          <div className="mygames-header">
-            <h2>My Games</h2>
-            <span className="mygames-count">{games.length} games</span>
-            <button className="video-player-close" onClick={closeMyGames}>✕</button>
-          </div>
-          <div className="mygames-cards-scroll">
-            {games.map((game) => (
-              <div
-                key={game.name}
-                className="game-card"
-                onMouseEnter={handleCardHover}
-                onClick={() => { launchGame(game); closeMyGames() }}
-              >
-                <div className="game-card-img">
-                  <img src={game.icon} alt={game.name} />
-                </div>
-                <div className="game-card-info">
-                  <div className="game-card-title">{game.name}</div>
-                  <div className="game-card-stars" style={{ fontSize: '24px', letterSpacing: '2px', color: '#ffb400', marginTop: '5px', marginBottom: '5px' }}>{renderStars(game.stars)}</div>
-                  <div className="game-card-platform" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span><span className="game-card-platform-icon">🎮</span> PC</span>
-                    <div>
-                      <button className="modal-btn" style={{ padding: '2px 10px', fontSize: '14px', height: 'auto', backgroundColor: '#333', marginRight: '5px' }} onClick={(e) => openEditModal(game, e)}>
-                        Edit
-                      </button>
-                      <button className="modal-btn" style={{ padding: '2px 10px', fontSize: '14px', height: 'auto', backgroundColor: game.isPinned ? '#ff4444' : '#107c10' }} onClick={(e) => togglePin(game, e)}>
-                        {game.isPinned ? 'Unpin' : 'Pin'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>,
-        document.body
+      {/* MY GAMES COLLECTION */}
+      {showMyGames && (
+        <CollectionPage
+          title="My Games"
+          items={games.map(g => ({ ...g, id: g.name }))}
+          onClose={closeMyGames}
+          onItemAction={(game) => { launchGame(game); closeMyGames(); }}
+          showPinButton
+          onPin={togglePin}
+          filters={[{ label: 'all games' }]}
+          emptyMessage="No games added yet."
+          isActive={isActive}
+        />
       )}
 
-      {/* MY ROMS FULL SCREEN */}
-      {showMyRoms && createPortal(
-        <div className={`mygames-overlay ${isClosingMyRoms ? 'closing' : ''}`}>
-          <div className="mygames-header">
-            <h2>My ROMs</h2>
-            <span className="mygames-count">{allRoms.length} ROMs</span>
-            <button className="video-player-close" onClick={closeMyRoms}>✕</button>
-          </div>
-          <div className="mygames-cards-scroll">
-            {allRoms.length === 0 ? (
-              <div style={{ color: '#aaa', padding: 40, textAlign: 'center', fontSize: 16 }}>
-                No ROMs found. Select a ROM folder to scan for games.
-              </div>
-            ) : (
-              allRoms.map((rom) => (
-                <div
-                  key={rom.name}
-                  className="game-card rom-card"
-                  onMouseEnter={handleCardHover}
-                  onClick={() => { launchRom(rom); closeMyRoms() }}
-                >
-                  <div className="game-card-img rom-card-img">
-                    <div className="rom-card-icon">
-                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
-                        <rect x="2" y="6" width="20" height="12" rx="2" />
-                        <circle cx="8" cy="12" r="2" />
-                        <rect x="13" y="10" width="5" height="4" rx="1" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="game-card-info">
-                    <div className="game-card-title">{rom.name}</div>
-                    <div style={{ fontSize: '13px', color: '#107c10', marginTop: 4 }}>{rom.systemName}</div>
-                    <div style={{ marginTop: 8 }}>
-                      <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: 3 }}>Core</label>
-                      <select
-                        className="rom-core-select"
-                        value={rom.core}
-                        onChange={(e) => updateRomCore(rom.name, e.target.value, e)}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {Object.entries(CORE_LABELS).map(([key, label]) => (
-                          <option key={key} value={key}>{label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>,
-        document.body
+      {/* MY ROMS COLLECTION */}
+      {showMyRoms && (
+        <CollectionPage
+          title="My ROMs"
+          items={allRoms.map(r => ({ ...r, id: r.name, icon: null }))}
+          onClose={closeMyRoms}
+          onItemAction={(rom) => { launchRom(rom); closeMyRoms(); }}
+          filters={[{ label: 'all roms' }]}
+          emptyMessage="No ROMs found. Select a ROM folder to scan for games."
+          isActive={isActive}
+          renderItem={(rom) => (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <circle cx="8" cy="12" r="2" />
+                <rect x="13" y="10" width="5" height="4" rx="1" />
+              </svg>
+              <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{rom.systemName}</span>
+            </div>
+          )}
+        />
       )}
 
       {/* ADD GAME MODAL */}

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
+import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath } from '../utils/electron'
 
-export default function VideoPage() {
+export default function VideoPage({ isActive }) {
   const { config, updateConfig } = useConfig()
   const mediaDir = config.videoFolder
   const setMediaDir = (val) => updateConfig('videoFolder', val)
@@ -172,33 +173,24 @@ export default function VideoPage() {
 
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleFolderInput} />
 
-      {/* Video List Modal */}
-      {showList && createPortal(
-        <div className="modal-overlay" onClick={() => setShowList(false)}>
-          <div className="modal-content video-list-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>My Media</h2>
-            {videos.length === 0 ? (
-              <p className="video-empty">No media found. Select a folder containing videos or photos.</p>
+      {/* MY MEDIA COLLECTION */}
+      {showList && (
+        <CollectionPage
+          title="My Media"
+          items={videos.map(v => ({ ...v, id: v.path, icon: v.path }))}
+          onClose={() => setShowList(false)}
+          onItemAction={(v) => { openVideo(v); setShowList(false); }}
+          filters={[{ label: 'all media' }]}
+          emptyMessage="No media found. Select a folder containing videos or photos."
+          isActive={isActive}
+          renderItem={(v) => (
+            v.isVideo ? (
+              <video src={v.path} muted preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <div className="video-list-items" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: 10 }}>
-                {videos.map((v) => (
-                  <div key={v.path} className="video-list-item" onClick={() => openVideo(v)} style={{ flexDirection: 'column', padding: 10, alignItems: 'center', background: '#333', borderRadius: 5 }}>
-                    {v.isVideo ? (
-                      <video src={v.path} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 4 }} />
-                    ) : (
-                      <img src={v.path} style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 4 }} />
-                    )}
-                    <span className="video-list-name" style={{ fontSize: '0.8rem', textAlign: 'center', marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>{v.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="modal-actions">
-              <button className="modal-btn cancel" onClick={() => setShowList(false)}>Close</button>
-            </div>
-          </div>
-        </div>,
-        document.body
+              <img src={v.path} alt={v.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            )
+          )}
+        />
       )}
 
       {/* Video Player Modal */}
