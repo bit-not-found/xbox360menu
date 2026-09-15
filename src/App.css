@@ -1037,3 +1037,633 @@
   text-overflow: ellipsis;
 }
 
+/* ===== APP WINDOW (Blade/Zoom Transition) ===== */
+.app-window-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: appWindowEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.app-window-overlay.closing {
+  animation: appWindowExit 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes appWindowEnter {
+  0% {
+    opacity: 0;
+    background: rgba(0, 0, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.85);
+  }
+}
+
+@keyframes appWindowExit {
+  0% {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.85);
+  }
+  100% {
+    opacity: 0;
+    background: rgba(0, 0, 0, 0);
+  }
+}
+
+.app-window {
+  width: 85vw;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: #0a0a0a;
+  overflow: hidden;
+  position: relative;
+  animation: appWindowZoom 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.app-window.fullscreen {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.app-window.fullscreen .app-window-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.app-window.fullscreen .app-window-bar:hover,
+.app-window.fullscreen .app-window-bar:not(.hidden) {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.app-window-bar.hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@keyframes appWindowZoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateX(60px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+
+.app-window.closing .app-window-content {
+  animation: appWindowContentExit 0.3s ease-in forwards;
+}
+
+@keyframes appWindowContentExit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+.app-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
+  border-bottom: 2px solid #108710;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.app-window-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-window-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-window-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #ebebeb;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+.app-window-back,
+.app-window-close {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.app-window-back:hover,
+.app-window-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-window-close:hover {
+  color: #ff4444;
+}
+
+.app-window-btn {
+  background: none;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+}
+
+.app-window-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-window-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-window-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.app-window-iframe.loaded {
+  opacity: 1;
+}
+
+.app-window-internal {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+.app-window-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #888;
+  font-size: 1rem;
+}
+
+.app-window-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #333;
+  border-top-color: #108710;
+  border-radius: 50%;
+  animation: appWindowSpin 0.8s linear infinite;
+}
+
+@keyframes appWindowSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== XBOX GUIDE BLADE ===== */
+.guide-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 400;
+  background: rgba(0, 0, 0, 0.5);
+  animation: guideOverlayEnter 0.3s ease forwards;
+}
+
+.guide-overlay.closing {
+  animation: guideOverlayExit 0.25s ease forwards;
+}
+
+@keyframes guideOverlayEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes guideOverlayExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.guide-blade {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 380px;
+  height: 100vh;
+  background: linear-gradient(135deg, rgba(10, 10, 10, 0.97) 0%, rgba(15, 20, 15, 0.97) 100%);
+  backdrop-filter: blur(20px);
+  border-right: 2px solid #108710;
+  display: flex;
+  flex-direction: column;
+  z-index: 401;
+  animation: guideBladeEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+.guide-blade.closing {
+  animation: guideBladeExit 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@keyframes guideBladeEnter {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes guideBladeExit {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(16, 135, 16, 0.3);
+}
+
+.guide-xbox-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-xbox-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #108710;
+  text-shadow: 0 0 10px rgba(16, 135, 16, 0.3);
+}
+
+.guide-profile-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guide-avatar-mini {
+  width: 28px;
+  height: 28px;
+  background: #ddd;
+  border: 2px solid #108710;
+}
+
+.guide-gamertag-mini {
+  font-size: 0.8rem;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.guide-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.guide-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 0.85rem;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 400;
+  padding: 12px 0;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.2s, background 0.2s;
+  position: relative;
+}
+
+.guide-tab:hover {
+  color: #ccc;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.guide-tab.active {
+  color: #108710;
+  font-weight: 600;
+}
+
+.guide-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 2px;
+  background: #108710;
+}
+
+.guide-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+.guide-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.guide-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.guide-content::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+.guide-tab-content {
+  padding: 0;
+}
+
+.guide-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.guide-section-title {
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.guide-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.guide-stat-label {
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.guide-stat-value {
+  font-size: 0.9rem;
+  color: #ebebeb;
+  font-weight: 500;
+}
+
+.guide-stat-value.gamerscore {
+  color: #ffcc00;
+  font-weight: 700;
+}
+
+.guide-stat-highlight {
+  color: #108710 !important;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.guide-stat-on {
+  color: #108710;
+}
+
+.guide-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin: 2px 0;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 2px;
+}
+
+.guide-list-item:hover {
+  background: rgba(16, 135, 16, 0.15);
+}
+
+.guide-list-thumb {
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #222;
+}
+
+.guide-list-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.guide-list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.guide-list-name {
+  font-size: 0.85rem;
+  color: #ebebeb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guide-list-sub {
+  font-size: 0.7rem;
+  color: #ffcc00;
+  letter-spacing: 2px;
+}
+
+.guide-pinned-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+.guide-list-more {
+  font-size: 0.75rem;
+  color: #666;
+  text-align: center;
+  padding: 8px;
+}
+
+.guide-empty {
+  font-size: 0.85rem;
+  color: #555;
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+}
+
+.guide-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  font-size: 0.9rem;
+  font-family: 'Segoe UI', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 4px;
+}
+
+.guide-action-btn:hover {
+  background: rgba(16, 135, 16, 0.15);
+  border-color: rgba(16, 135, 16, 0.3);
+}
+
+.guide-action-icon {
+  font-size: 1.1rem;
+}
+
+/* Guide volume control */
+.guide-volume-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.guide-volume-label {
+  font-size: 0.85rem;
+  color: #999;
+  min-width: 55px;
+}
+
+.guide-volume-slider {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: #108710;
+}
+
+.guide-volume-mute {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+/* Guide footer */
+.guide-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(16, 135, 16, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.guide-footer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  font-size: 0.9rem;
+  font-family: 'Segoe UI', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.guide-footer-btn:hover {
+  transform: scale(1.02);
+}
+
+.guide-footer-btn:active {
+  transform: scale(0.98);
+}
+
+.guide-quit-btn {
+  background: linear-gradient(135deg, #108710 0%, #0d6b0d 100%);
+  color: #fff;
+}
+
+.guide-quit-btn:hover {
+  background: linear-gradient(135deg, #12a012 0%, #108710 100%);
+}
+
+.guide-footer-hint {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.guide-shortcut-hint {
+  font-size: 0.7rem;
+  color: #555;
+  letter-spacing: 0.5px;
+}
+

@@ -14,7 +14,7 @@ const subdomains = [
   { id: 'desktop', label: 'Desktop', url: 'https://desktop.panashe.co.za', icon: './assets/icons/Preferences.png' },
 ]
 
-export default function HomePage() {
+export default function HomePage({ onOpenApp }) {
   const { config, updateConfig } = useConfig()
   const allGames = config.myGames || []
   const tilesConfig = config.homeTiles || {}
@@ -78,7 +78,11 @@ export default function HomePage() {
     
     const appPath = tileConfig.app.trim()
     if (appPath.toLowerCase().startsWith('http://') || appPath.toLowerCase().startsWith('https://')) {
-      window.open(appPath, '_blank')
+      if (onOpenApp) {
+        onOpenApp({ type: 'external', url: appPath, label: tileId })
+      } else {
+        window.open(appPath, '_blank')
+      }
     } else if (isElectron()) {
       try {
         const { exec } = window.require('child_process')
@@ -109,8 +113,12 @@ export default function HomePage() {
     }
   }
 
-  const handleOpenSubdomain = (url) => {
-    window.open(url, '_blank')
+  const handleOpenSubdomain = (url, label) => {
+    if (onOpenApp) {
+      onOpenApp({ type: 'external', url, label })
+    } else {
+      window.open(url, '_blank')
+    }
   }
 
   const renderTile = (id, defaultLabel, defaultIcon) => {
@@ -176,7 +184,7 @@ export default function HomePage() {
       <Tile
         label={subdomain.label}
         icon={<img src={subdomain.icon} alt={subdomain.label} />}
-        onClick={() => handleOpenSubdomain(subdomain.url)}
+        onClick={() => handleOpenSubdomain(subdomain.url, subdomain.label)}
       />
     )
   }

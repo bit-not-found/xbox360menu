@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getIpcRenderer } from './utils/electron'
 import Tile from './components/Tile'
 import IntroVideo from './components/IntroVideo'
@@ -8,6 +8,8 @@ import VideoPage from './components/VideoPage'
 import GamesPage from './components/GamesPage'
 import MusicPage from './components/MusicPage'
 import AppsPage from './components/AppsPage'
+import AppWindow from './components/AppWindow'
+import XboxGuide from './components/XboxGuide'
 import './App.css'
 import { ConfigProvider } from './context/ConfigContext'
 
@@ -50,6 +52,8 @@ function App() {
   const [showIntro, setShowIntro] = useState(true)
   const [isSliding, setIsSliding] = useState(false)
   const [entranceAnimation, setEntranceAnimation] = useState(false)
+  const [activeApp, setActiveApp] = useState(null)
+  const [showGuide, setShowGuide] = useState(false)
 
   const finishIntro = () => {
     setShowIntro(false)
@@ -73,6 +77,42 @@ function App() {
       setIsSliding(false)
     }, 500)
   }
+
+  const openApp = useCallback((app) => {
+    setActiveApp(app)
+  }, [])
+
+  const closeApp = useCallback(() => {
+    setActiveApp(null)
+  }, [])
+
+  const toggleGuide = useCallback(() => {
+    setShowGuide(prev => !prev)
+  }, [])
+
+  const closeGuide = useCallback(() => {
+    setShowGuide(false)
+  }, [])
+
+  const quitToDashboard = useCallback(() => {
+    setActiveApp(null)
+    setShowGuide(false)
+    setActiveCategory(0)
+  }, [])
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === ' ' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        e.preventDefault()
+        toggleGuide()
+      }
+      if (e.key === 'Escape' && activeApp && !showGuide) {
+        closeApp()
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [toggleGuide, closeApp, closeGuide, activeApp, showGuide])
 
   return (
     <div className={`dashboard ${isSliding ? 'sliding' : ''} ${entranceAnimation ? 'animate-entrance' : ''}`}>
@@ -108,7 +148,7 @@ function App() {
           {categories.map((cat, index) => (
             <section key={cat} className={`page ${index !== activeCategory ? 'inactive' : ''}`}>
               {cat === 'home' ? (
-                <HomePage />
+                <HomePage onOpenApp={openApp} />
               ) : cat === 'social' ? (
                 <SocialPage />
               ) : cat === 'media' ? (
@@ -140,6 +180,19 @@ function App() {
           ))}
         </div>
       </main>
+
+      {activeApp && (
+        <AppWindow app={activeApp} onClose={closeApp} />
+      )}
+
+      {showGuide && (
+        <XboxGuide
+          onClose={closeGuide}
+          onQuitToDashboard={quitToDashboard}
+          activeCategory={activeCategory}
+          categories={categories}
+        />
+      )}
     </div>
   )
 }
