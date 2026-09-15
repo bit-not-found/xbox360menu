@@ -21,7 +21,9 @@ function loadFromLocalStorage() {
     customMusicCovers: JSON.parse(localStorage.getItem('customMusicCovers') || '{}'),
     musicFolder: localStorage.getItem('musicFolder') || '',
     videoFolder: localStorage.getItem('videoFolder') || '',
-    homeTiles: JSON.parse(localStorage.getItem('homeTiles') || '{}')
+    homeTiles: JSON.parse(localStorage.getItem('homeTiles') || '{}'),
+    romFolder: localStorage.getItem('romFolder') || '',
+    myRoms: JSON.parse(localStorage.getItem('myRoms') || '[]')
   }
 }
 
@@ -33,6 +35,8 @@ function saveToLocalStorage(data) {
   localStorage.setItem('musicFolder', data.musicFolder)
   localStorage.setItem('videoFolder', data.videoFolder)
   localStorage.setItem('homeTiles', JSON.stringify(data.homeTiles))
+  localStorage.setItem('romFolder', data.romFolder)
+  localStorage.setItem('myRoms', JSON.stringify(data.myRoms))
 }
 
 export function ConfigProvider({ children }) {

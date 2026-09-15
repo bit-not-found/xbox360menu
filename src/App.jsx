@@ -58,8 +58,6 @@ function App() {
   const [focusedAppId, setFocusedAppId] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
 
-  const focusedApp = openApps.find(a => a.id === focusedAppId) || null
-
   const finishIntro = () => {
     setShowIntro(false)
     setEntranceAnimation(true)
@@ -80,7 +78,10 @@ function App() {
   }
 
   const openApp = useCallback((app) => {
-    const existing = openApps.find(a => a.url === app.url)
+    const existing = openApps.find(a => {
+      if (app.type === 'emulator' && a.type === 'emulator') return a.label === app.label
+      return a.url === app.url
+    })
     if (existing) {
       setFocusedAppId(existing.id)
     } else {
@@ -192,7 +193,7 @@ function App() {
               ) : cat === 'media' ? (
                 <VideoPage />
               ) : cat === 'games' ? (
-                <GamesPage />
+                <GamesPage onOpenApp={openApp} />
               ) : cat === 'music' ? (
                 <MusicPage />
               ) : cat === 'apps' ? (

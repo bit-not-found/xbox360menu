@@ -2,17 +2,90 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import { useConfig } from '../context/ConfigContext'
-import { isElectron, getIpcRenderer, getNodeChildProcess, getNodePath } from '../utils/electron'
+import { isElectron, getIpcRenderer, getNodeFs, getNodePath, getNodeChildProcess } from '../utils/electron'
 
 const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
 
-const defaultGames = []
+const ROM_EXTENSIONS = /\.(nes|sfc|smc|gba|gb|gbc|gen|md|sms|gg|pce|ngp|ngpc|ws|wsc|lnx|jag|vb|col|sg)$/i
 
-export default function GamesPage() {
+const SYSTEM_CORE_MAP = {
+  nes: 'fceumm',
+  sfc: 'snes9x',
+  smc: 'snes9x',
+  gba: 'mgba',
+  gb: 'mgba',
+  gbc: 'mgba',
+  gen: 'genesis_plus_gx',
+  md: 'genesis_plus_gx',
+  sms: 'genesis_plus_gx',
+  gg: 'genesis_plus_gx',
+  pce: 'mednafen_pce',
+  ngp: 'meowatch',
+  ngpc: 'meowatch',
+  ws: 'mednafen_wswan',
+  wsc: 'mednafen_wswan',
+  lnx: 'handy',
+  jag: 'virtualjaguar',
+  vb: 'mednafen_vb',
+  col: 'col'
+}
+
+const CORE_LABELS = {
+  fceumm: 'NES (FCEUmm)',
+  snes9x: 'SNES (Snes9x)',
+  mgba: 'GBA/GB/GBC (mGBA)',
+  genesis_plus_gx: 'Genesis/MD/SMS/GG (Genesis Plus GX)',
+  mednafen_pce: 'PC Engine (Mednafen)',
+  meowatch: 'Neo Geo Pocket (Meowatch)',
+  mednafen_wswan: 'WonderSwan (Mednafen)',
+  handy: 'Lynx (Handy)',
+  virtualjaguar: 'Jaguar (VirtualJag)',
+  mednafen_vb: 'Virtual Boy (Mednafen)',
+  col: 'ColecoVision (Col)'
+}
+
+const SYSTEM_NAMES = {
+  nes: 'NES', sfc: 'SNES', smc: 'SNES', gba: 'GBA', gb: 'Game Boy',
+  gbc: 'Game Boy Color', gen: 'Genesis', md: 'Genesis', sms: 'Master System',
+  gg: 'Game Gear', pce: 'PC Engine', ngp: 'Neo Geo Pocket', ngpc: 'Neo Geo Pocket Color',
+  ws: 'WonderSwan', wsc: 'WonderSwan Color', lnx: 'Lynx', jag: 'Jaguar',
+  vb: 'Virtual Boy', col: 'ColecoVision'
+}
+
+function detectSystem(filename) {
+  const ext = filename.split('.').pop().toLowerCase()
+  return { ext, system: SYSTEM_CORE_MAP[ext] || 'fceumm', systemName: SYSTEM_NAMES[ext] || ext.toUpperCase() }
+}
+
+export default function GamesPage({ onOpenApp }) {
   const { config, updateConfig } = useConfig()
   const games = config.myGames
+  const romFolder = config.romFolder || ''
+  const myRoms = config.myRoms || []
+
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showMyGames, setShowMyGames] = useState(false)
+  const [isClosingMyGames, setIsClosingMyGames] = useState(false)
+  const [showMyRoms, setShowMyRoms] = useState(false)
+  const [isClosingMyRoms, setIsClosingMyRoms] = useState(false)
+  const [newGameName, setNewGameName] = useState('')
+  const [newGameExe, setNewGameExe] = useState('')
+  const [previewIcon, setPreviewIcon] = useState(null)
+  const [previewBanner, setPreviewBanner] = useState(null)
+  const [editingGameName, setEditingGameName] = useState(null)
+  const [igdbClientId, setIgdbClientId] = useState(() => localStorage.getItem('igdbClientId') || '')
+  const [igdbToken, setIgdbToken] = useState(() => localStorage.getItem('igdbToken') || '')
+  const [showIgdbSetup, setShowIgdbSetup] = useState(false)
+  const [isSearchingOnline, setIsSearchingOnline] = useState(false)
+  const [onlineSearchResults, setOnlineSearchResults] = useState([])
+
+  const iconInputRef = useRef(null)
+  const bannerInputRef = useRef(null)
+  const exeInputRef = useRef(null)
+  const romFolderInputRef = useRef(null)
+  const romFileCache = useRef(new Map())
 
   const setGames = (newVal) => {
     if (typeof newVal === 'function') {
@@ -22,32 +95,137 @@ export default function GamesPage() {
     }
   }
 
+  const setRoms = (newVal) => {
+    if (typeof newVal === 'function') {
+      updateConfig('myRoms', newVal(myRoms))
+    } else {
+      updateConfig('myRoms', newVal)
+    }
+  }
+
   useEffect(() => {
     window.dispatchEvent(new Event('games-updated'))
   }, [games])
 
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showMyGames, setShowMyGames] = useState(false)
-  const [isClosingMyGames, setIsClosingMyGames] = useState(false)
-  const [newGameName, setNewGameName] = useState('')
-  const [newGameExe, setNewGameExe] = useState('')
-  const [newGameIcon, setNewGameIcon] = useState(null)
-  const [newGameBanner, setNewGameBanner] = useState(null)
-  const [previewIcon, setPreviewIcon] = useState(null)
-  const [previewBanner, setPreviewBanner] = useState(null)
-  const [editingGameName, setEditingGameName] = useState(null)
+  // Scan ROM folder on mount (Electron only, browser requires re-selection)
+  useEffect(() => {
+    if (romFolder && isElectron()) {
+      try {
+        const fs = getNodeFs()
+        const path = getNodePath()
+        if (!fs || !path) return
 
-  const [igdbClientId, setIgdbClientId] = useState(() => localStorage.getItem('igdbClientId') || '')
-  const [igdbToken, setIgdbToken] = useState(() => localStorage.getItem('igdbToken') || '')
-  const [showIgdbSetup, setShowIgdbSetup] = useState(false)
+        const getFilesRecursively = (dir, fileList = []) => {
+          if (!fs.existsSync(dir)) return fileList
+          const files = fs.readdirSync(dir)
+          for (const file of files) {
+            const filePath = path.join(dir, file)
+            if (fs.statSync(filePath).isDirectory()) {
+              getFilesRecursively(filePath, fileList)
+            } else if (ROM_EXTENSIONS.test(file)) {
+              const { ext, system, systemName } = detectSystem(file)
+              fileList.push({
+                name: file.replace(/\.[^.]+$/, ''),
+                path: filePath,
+                ext,
+                system,
+                systemName,
+                core: SYSTEM_CORE_MAP[ext] || 'fceumm'
+              })
+            }
+          }
+          return fileList
+        }
 
-  const [isSearchingOnline, setIsSearchingOnline] = useState(false)
-  const [onlineSearchResults, setOnlineSearchResults] = useState([])
+        const roms = getFilesRecursively(romFolder)
+        setRoms(roms)
+      } catch (e) {
+        console.log('ROM scan failed:', e.message)
+      }
+    }
+  }, [romFolder, setRoms])
 
-  const iconInputRef = useRef(null)
-  const bannerInputRef = useRef(null)
-  const exeInputRef = useRef(null)
+  const openRomFolder = async () => {
+    if (isElectron()) {
+      try {
+        const ipcRenderer = getIpcRenderer()
+        const result = await ipcRenderer.invoke('dialog:openDirectory')
+        if (result && !result.canceled && result.filePaths.length > 0) {
+          updateConfig('romFolder', result.filePaths[0])
+        }
+      } catch (e) {
+        console.log('Cannot open folder dialog', e)
+      }
+    } else {
+      romFolderInputRef.current?.click()
+    }
+  }
 
+  const handleRomFolderInput = (e) => {
+    const files = Array.from(e.target.files)
+    const romEntries = files
+      .filter(f => ROM_EXTENSIONS.test(f.name))
+      .map(f => {
+        const { ext, system, systemName } = detectSystem(f.name)
+        const name = f.name.replace(/\.[^.]+$/, '')
+        romFileCache.current.set(name, f)
+        return {
+          name,
+          ext,
+          system,
+          systemName,
+          core: SYSTEM_CORE_MAP[ext] || 'fceumm'
+        }
+      })
+    setRoms(romEntries)
+    updateConfig('romFolder', e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'ROMs')
+  }
+
+  const launchRom = async (rom) => {
+    selectAudio.currentTime = 0
+    selectAudio.play().catch(() => {})
+
+    let romData = null
+
+    if (isElectron() && rom.path) {
+      try {
+        const fs = getNodeFs()
+        if (fs && fs.promises && fs.promises.readFile) {
+          const data = await fs.promises.readFile(rom.path)
+          romData = new Blob([data])
+        } else if (fs && fs.readFileSync) {
+          const data = fs.readFileSync(rom.path)
+          romData = new Blob([data])
+        }
+      } catch (e) {
+        console.error('Failed to read ROM file:', e)
+      }
+    } else {
+      romData = romFileCache.current.get(rom.name) || null
+    }
+
+    if (!romData) {
+      alert('ROM file not available. Please re-select your ROM folder.')
+      return
+    }
+
+    if (onOpenApp) {
+      onOpenApp({
+        type: 'emulator',
+        rom: romData,
+        core: rom.core || 'fceumm',
+        label: rom.name,
+        systemName: rom.systemName
+      })
+    }
+  }
+
+  const updateRomCore = (romName, newCore, e) => {
+    e.stopPropagation()
+    setRoms(prev => prev.map(r => r.name === romName ? { ...r, core: newCore } : r))
+  }
+
+  // Existing game functions
   const searchOnlineDatabase = async () => {
     if (!igdbClientId || !igdbToken) {
       setShowIgdbSetup(true)
@@ -59,7 +237,6 @@ export default function GamesPage() {
     }
     setIsSearchingOnline(true)
     setOnlineSearchResults([])
-
     try {
       const response = await fetch('https://api.igdb.com/v4/games', {
         method: 'POST',
@@ -72,21 +249,18 @@ export default function GamesPage() {
         body: `search "${newGameName}"; fields name, cover.image_id, screenshots.image_id; limit 15;`
       })
       const parsed = await response.json()
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setOnlineSearchResults(parsed)
-      } else {
-        setOnlineSearchResults([{ id: 'none', name: 'No games found' }])
-      }
-    } catch (e) {
+      setOnlineSearchResults(Array.isArray(parsed) && parsed.length > 0
+        ? parsed
+        : [{ id: 'none', name: 'No games found' }])
+    } catch {
       setOnlineSearchResults([{ id: 'none', name: 'Search Failed' }])
     }
   }
 
-  const applyOnlineGame = async (gameItem) => {
+  const applyOnlineGame = (gameItem) => {
     setNewGameName(gameItem.name)
     setOnlineSearchResults([])
     setIsSearchingOnline(false)
-
     let coverUrl = ''
     if (gameItem.cover && gameItem.cover.image_id) {
       coverUrl = `https://images.igdb.com/igdb/image/upload/t_cover_big/${gameItem.cover.image_id}.jpg`
@@ -95,7 +269,6 @@ export default function GamesPage() {
     if (gameItem.screenshots && gameItem.screenshots.length > 0) {
       bannerUrl = `https://images.igdb.com/igdb/image/upload/t_1080p/${gameItem.screenshots[0].image_id}.jpg`
     }
-
     if (coverUrl) setPreviewIcon(coverUrl)
     if (bannerUrl) setPreviewBanner(bannerUrl)
   }
@@ -122,31 +295,20 @@ export default function GamesPage() {
     if (!newGameName) return
     const iconUrl = previewIcon || './assets/imgs/260x195-PLACEHOLDER.png'
     const bannerUrl = previewBanner || previewIcon || './assets/imgs/260x195-PLACEHOLDER.png'
-
     if (editingGameName) {
       setGames(prev => prev.map(g => g.name === editingGameName ? {
-        ...g,
-        name: newGameName,
-        exe: newGameExe,
+        ...g, name: newGameName, exe: newGameExe,
         icon: previewIcon ? iconUrl : g.icon,
         banner: previewBanner ? bannerUrl : (previewIcon ? iconUrl : g.banner)
       } : g))
     } else {
       setGames([...games, {
-        name: newGameName,
-        exe: newGameExe,
-        icon: iconUrl,
-        banner: bannerUrl,
-        stars: 5,
-        isPinned: false,
-        lastPlayed: 0
+        name: newGameName, exe: newGameExe, icon: iconUrl, banner: bannerUrl,
+        stars: 5, isPinned: false, lastPlayed: 0
       }])
     }
-
     setNewGameName('')
     setNewGameExe('')
-    setNewGameIcon(null)
-    setNewGameBanner(null)
     setPreviewIcon(null)
     setPreviewBanner(null)
     setEditingGameName(null)
@@ -155,17 +317,14 @@ export default function GamesPage() {
 
   const launchGame = (game) => {
     selectAudio.currentTime = 0
-    selectAudio.play().catch(() => { })
-
+    selectAudio.play().catch(() => {})
     setGames(prev => prev.map(g => g.name === game.name ? { ...g, lastPlayed: Date.now() } : g))
-
     if (game.exe && isElectron()) {
       try {
         const exec = getNodeChildProcess()
         const path = getNodePath()
         if (exec && path) {
-          const cwd = path.dirname(game.exe)
-          exec(`start "" "${game.exe}"`, { cwd }, (err) => {
+          exec(`start "" "${game.exe}"`, { cwd: path.dirname(game.exe) }, (err) => {
             if (err) console.error('Failed to launch:', err)
           })
         }
@@ -184,23 +343,27 @@ export default function GamesPage() {
 
   const handleCardHover = () => {
     hoverAudio.currentTime = 0
-    hoverAudio.play().catch(() => { })
+    hoverAudio.play().catch(() => {})
   }
 
   const closeMyGames = () => {
     backAudio.currentTime = 0
-    backAudio.play().catch(() => { })
+    backAudio.play().catch(() => {})
     setIsClosingMyGames(true)
-    setTimeout(() => {
-      setShowMyGames(false)
-      setIsClosingMyGames(false)
-    }, 300)
+    setTimeout(() => { setShowMyGames(false); setIsClosingMyGames(false) }, 300)
   }
 
   const openMyGames = () => {
     selectAudio.currentTime = 0
-    selectAudio.play().catch(() => { })
+    selectAudio.play().catch(() => {})
     setShowMyGames(true)
+  }
+
+  const closeMyRoms = () => {
+    backAudio.currentTime = 0
+    backAudio.play().catch(() => {})
+    setIsClosingMyRoms(true)
+    setTimeout(() => { setShowMyRoms(false); setIsClosingMyRoms(false) }, 300)
   }
 
   const renderStars = (count) => {
@@ -210,27 +373,17 @@ export default function GamesPage() {
 
   const handleIconFile = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      setPreviewIcon(URL.createObjectURL(file))
-    }
+    if (file) setPreviewIcon(URL.createObjectURL(file))
   }
 
   const handleBannerFile = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      setPreviewBanner(URL.createObjectURL(file))
-    }
+    if (file) setPreviewBanner(URL.createObjectURL(file))
   }
 
-  const handleExeFile = async (e) => {
+  const handleExeFile = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      if (isElectron()) {
-        setNewGameExe(file.path)
-      } else {
-        setNewGameExe(file.name)
-      }
-    }
+    if (file) setNewGameExe(isElectron() ? file.path : file.name)
   }
 
   const openFileElectron = async (setter, filters) => {
@@ -248,6 +401,29 @@ export default function GamesPage() {
     }
   }
 
+  const allRoms = myRoms
+
+  const renderRomTile = (rom) => {
+    if (!rom) return <Tile />
+    return (
+      <Tile
+        key={rom.name}
+        className="game-tile-banner rom-tile"
+        onClick={() => launchRom(rom)}
+      >
+        <div className="rom-tile-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <circle cx="8" cy="12" r="2" />
+            <rect x="13" y="10" width="5" height="4" rx="1" />
+          </svg>
+        </div>
+        <div className="rom-tile-system">{rom.systemName}</div>
+        <div className="game-tile-name">{rom.name}</div>
+      </Tile>
+    )
+  }
+
   return (
     <>
       <div className="games-grid">
@@ -260,23 +436,18 @@ export default function GamesPage() {
         </div>
         <div className="games-c1-r2">
           <Tile
-            label="Add Games"
-            icon={<img src="./assets/icons/add_apps.png" alt="Add Games" />}
-            onClick={() => {
-              setEditingGameName(null)
-              setNewGameName('')
-              setNewGameExe('')
-              setPreviewIcon(null)
-              setPreviewBanner(null)
-              setShowAddModal(true)
-            }}
+            label="ROM Folder"
+            icon={<img src="./assets/icons/Folder.png" alt="ROM Folder" />}
+            onClick={openRomFolder}
           />
         </div>
 
         <div className="games-center">
-          {games.length > 0 ? (
-            <Tile 
-              className="game-tile-banner" 
+          {allRoms.length > 0 ? (
+            renderRomTile(allRoms[0])
+          ) : games.length > 0 ? (
+            <Tile
+              className="game-tile-banner"
               onClick={() => launchGame(games[0])}
               onContextMenu={(e) => openEditModal(games[0], e)}
             >
@@ -289,9 +460,11 @@ export default function GamesPage() {
         </div>
 
         <div className="games-c3-r1">
-          {games.length > 1 ? (
-            <Tile 
-              className="game-tile-banner" 
+          {allRoms.length > 1 ? (
+            renderRomTile(allRoms[1])
+          ) : games.length > 1 ? (
+            <Tile
+              className="game-tile-banner"
               onClick={() => launchGame(games[1])}
               onContextMenu={(e) => openEditModal(games[1], e)}
             >
@@ -301,9 +474,11 @@ export default function GamesPage() {
           ) : <Tile />}
         </div>
         <div className="games-c3-r2">
-          {games.length > 2 ? (
-            <Tile 
-              className="game-tile-banner" 
+          {allRoms.length > 2 ? (
+            renderRomTile(allRoms[2])
+          ) : games.length > 2 ? (
+            <Tile
+              className="game-tile-banner"
               onClick={() => launchGame(games[2])}
               onContextMenu={(e) => openEditModal(games[2], e)}
             >
@@ -314,9 +489,11 @@ export default function GamesPage() {
         </div>
 
         <div className="games-c4-r1">
-          {games.length > 3 ? (
-            <Tile 
-              className="game-tile-banner" 
+          {allRoms.length > 3 ? (
+            renderRomTile(allRoms[3])
+          ) : games.length > 3 ? (
+            <Tile
+              className="game-tile-banner"
               onClick={() => launchGame(games[3])}
               onContextMenu={(e) => openEditModal(games[3], e)}
             >
@@ -326,9 +503,11 @@ export default function GamesPage() {
           ) : <Tile />}
         </div>
         <div className="games-c4-r2">
-          {games.length > 4 ? (
-            <Tile 
-              className="game-tile-banner" 
+          {allRoms.length > 4 ? (
+            renderRomTile(allRoms[4])
+          ) : games.length > 4 ? (
+            <Tile
+              className="game-tile-banner"
               onClick={() => launchGame(games[4])}
               onContextMenu={(e) => openEditModal(games[4], e)}
             >
@@ -338,6 +517,8 @@ export default function GamesPage() {
           ) : <Tile />}
         </div>
       </div>
+
+      <input ref={romFolderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleRomFolderInput} />
 
       {/* MY GAMES FULL SCREEN */}
       {showMyGames && createPortal(
@@ -375,6 +556,61 @@ export default function GamesPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MY ROMS FULL SCREEN */}
+      {showMyRoms && createPortal(
+        <div className={`mygames-overlay ${isClosingMyRoms ? 'closing' : ''}`}>
+          <div className="mygames-header">
+            <h2>My ROMs</h2>
+            <span className="mygames-count">{allRoms.length} ROMs</span>
+            <button className="video-player-close" onClick={closeMyRoms}>✕</button>
+          </div>
+          <div className="mygames-cards-scroll">
+            {allRoms.length === 0 ? (
+              <div style={{ color: '#aaa', padding: 40, textAlign: 'center', fontSize: 16 }}>
+                No ROMs found. Select a ROM folder to scan for games.
+              </div>
+            ) : (
+              allRoms.map((rom) => (
+                <div
+                  key={rom.name}
+                  className="game-card rom-card"
+                  onMouseEnter={handleCardHover}
+                  onClick={() => { launchRom(rom); closeMyRoms() }}
+                >
+                  <div className="game-card-img rom-card-img">
+                    <div className="rom-card-icon">
+                      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+                        <rect x="2" y="6" width="20" height="12" rx="2" />
+                        <circle cx="8" cy="12" r="2" />
+                        <rect x="13" y="10" width="5" height="4" rx="1" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="game-card-info">
+                    <div className="game-card-title">{rom.name}</div>
+                    <div style={{ fontSize: '13px', color: '#107c10', marginTop: 4 }}>{rom.systemName}</div>
+                    <div style={{ marginTop: 8 }}>
+                      <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: 3 }}>Core</label>
+                      <select
+                        className="rom-core-select"
+                        value={rom.core}
+                        onChange={(e) => updateRomCore(rom.name, e.target.value, e)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {Object.entries(CORE_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>,
         document.body
