@@ -59,8 +59,8 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
     if (!isEmulator) return
     if (minimized) return
 
-    // If we already have an active emulator, just show its canvas and resume
-    if (activeNostalgist) {
+    // If we already have an active emulator for this same ROM, just show and resume
+    if (activeNostalgist && app._lastLabel === app.label) {
       try {
         const canvas = activeNostalgist.getCanvas()
         if (canvas) {
@@ -73,13 +73,23 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
       return
     }
 
+    // If a different ROM is launching, exit the old emulator first
+    if (activeNostalgist) {
+      try { activeNostalgist.exit() } catch { /* noop */ }
+      activeNostalgist = null
+    }
+
     let destroyed = false
 
     const launchEmulator = async () => {
       try {
+        const romOption = app.fileName
+          ? { fileContent: app.rom, fileName: app.fileName }
+          : app.rom
+
         const nostalgist = await Nostalgist.launch({
           core: app.core || 'fceumm',
-          rom: app.rom,
+          rom: romOption,
           retroarchConfig: {
             rewind_enable: true,
             savestate_thumbnail_enable: true
@@ -92,6 +102,7 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
         }
 
         activeNostalgist = nostalgist
+        app._lastLabel = app.label
 
         const canvas = nostalgist.getCanvas()
         if (canvas) {

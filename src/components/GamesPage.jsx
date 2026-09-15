@@ -85,7 +85,6 @@ export default function GamesPage({ onOpenApp }) {
   const bannerInputRef = useRef(null)
   const exeInputRef = useRef(null)
   const romFolderInputRef = useRef(null)
-  const romFileCache = useRef(new Map())
 
   const setGames = (newVal) => {
     if (typeof newVal === 'function') {
@@ -161,24 +160,24 @@ export default function GamesPage({ onOpenApp }) {
     }
   }
 
-  const handleRomFolderInput = (e) => {
-    const files = Array.from(e.target.files)
-    const romEntries = files
-      .filter(f => ROM_EXTENSIONS.test(f.name))
-      .map(f => {
-        const { ext, system, systemName } = detectSystem(f.name)
-        const name = f.name.replace(/\.[^.]+$/, '')
-        romFileCache.current.set(name, f)
-        return {
-          name,
-          ext,
-          system,
-          systemName,
-          core: SYSTEM_CORE_MAP[ext] || 'fceumm'
-        }
+  const handleRomFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+
+    const { ext, system, systemName } = detectSystem(file.name)
+    const name = file.name.replace(/\.[^.]+$/, '')
+
+    if (onOpenApp) {
+      onOpenApp({
+        type: 'emulator',
+        rom: file,
+        fileName: file.name,
+        core: SYSTEM_CORE_MAP[ext] || 'fceumm',
+        label: name,
+        systemName
       })
-    setRoms(romEntries)
-    updateConfig('romFolder', e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'ROMs')
+    }
   }
 
   const launchRom = async (rom) => {
@@ -186,8 +185,9 @@ export default function GamesPage({ onOpenApp }) {
     selectAudio.play().catch(() => {})
 
     let romData = null
+    const fileName = `${rom.name}.${rom.ext}`
 
-    if (isElectron() && rom.path) {
+    if (rom.path) {
       try {
         const fs = getNodeFs()
         if (fs && fs.promises && fs.promises.readFile) {
@@ -200,8 +200,6 @@ export default function GamesPage({ onOpenApp }) {
       } catch (e) {
         console.error('Failed to read ROM file:', e)
       }
-    } else {
-      romData = romFileCache.current.get(rom.name) || null
     }
 
     if (!romData) {
@@ -213,6 +211,7 @@ export default function GamesPage({ onOpenApp }) {
       onOpenApp({
         type: 'emulator',
         rom: romData,
+        fileName,
         core: rom.core || 'fceumm',
         label: rom.name,
         systemName: rom.systemName
@@ -518,7 +517,7 @@ export default function GamesPage({ onOpenApp }) {
         </div>
       </div>
 
-      <input ref={romFolderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleRomFolderInput} />
+      <input ref={romFolderInputRef} type="file" accept=".nes,.sfc,.smc,.gba,.gb,.gbc,.gen,.md,.sms,.gg,.pce,.ngp,.ngpc,.ws,.wsc,.lnx,.jag,.vb,.col,.sg" style={{ display: 'none' }} onChange={handleRomFileSelect} />
 
       {/* MY GAMES FULL SCREEN */}
       {showMyGames && createPortal(
