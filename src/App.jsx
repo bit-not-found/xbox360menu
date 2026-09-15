@@ -219,16 +219,17 @@ function App() {
         </div>
       </main>
 
-      {focusedApp && (
+      {openApps.map(app => (
         <AppWindow
-          key={focusedApp.id}
-          app={focusedApp}
-          onClose={() => closeApp(focusedApp.id)}
+          key={app.id}
+          app={app}
+          minimized={app.id !== focusedAppId}
+          onClose={() => closeApp(app.id)}
           onMinimize={minimizeApp}
         />
-      )}
+      ))}
 
-      {!focusedAppId && openApps.length > 0 && (
+      {openApps.length > 0 && (
         <Taskbar
           apps={openApps}
           focusedAppId={focusedAppId}

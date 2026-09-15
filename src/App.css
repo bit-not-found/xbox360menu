@@ -1056,6 +1056,12 @@
   animation: appWindowExit 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
+.app-window-overlay.minimized {
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+}
+
 @keyframes appWindowEnter {
   0% {
     opacity: 0;

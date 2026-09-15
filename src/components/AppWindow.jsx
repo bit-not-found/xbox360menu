@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
-export default function AppWindow({ app, onClose, onMinimize }) {
+export default function AppWindow({ app, onClose, onMinimize, minimized }) {
   const [isClosing, setIsClosing] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [showNav, setShowNav] = useState(true)
@@ -41,7 +41,7 @@ export default function AppWindow({ app, onClose, onMinimize }) {
   const isInternal = app.type === 'internal'
 
   return createPortal(
-    <div className={`app-window-overlay ${isClosing ? 'closing' : ''}`}>
+    <div className={`app-window-overlay ${isClosing ? 'closing' : ''} ${minimized ? 'minimized' : ''}`}>
       <div className="app-window fullscreen">
         <div className={`app-window-bar ${!showNav ? 'hidden' : ''}`}>
           <div className="app-window-bar-left">
