@@ -106,13 +106,14 @@ function App() {
         e.preventDefault()
         toggleGuide()
       }
-      if (e.key === 'Escape' && activeApp && !showGuide) {
-        closeApp()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        toggleGuide()
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [toggleGuide, closeApp, closeGuide, activeApp, showGuide])
+  }, [toggleGuide])
 
   return (
     <div className={`dashboard ${isSliding ? 'sliding' : ''} ${entranceAnimation ? 'animate-entrance' : ''}`}>
@@ -191,6 +192,9 @@ function App() {
           onQuitToDashboard={quitToDashboard}
           activeCategory={activeCategory}
           categories={categories}
+          onNavigate={handleCategoryChange}
+          activeApp={activeApp}
+          onCloseApp={closeApp}
         />
       )}
     </div>

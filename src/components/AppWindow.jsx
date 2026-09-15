@@ -20,16 +20,6 @@ export default function AppWindow({ app, onClose }) {
   }, [onClose])
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        handleClose()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleClose])
-
-  useEffect(() => {
     const handleMouseMove = () => {
       setShowNav(true)
       if (navTimeout.current) clearTimeout(navTimeout.current)

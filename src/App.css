@@ -1274,7 +1274,7 @@
   to { transform: rotate(360deg); }
 }
 
-/* ===== XBOX GUIDE BLADE ===== */
+/* ===== XBOX GUIDE BLADE (Quick Action Center) ===== */
 .guide-overlay {
   position: fixed;
   top: 0;
@@ -1321,29 +1321,22 @@
 }
 
 @keyframes guideBladeEnter {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(0);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
 }
 
 @keyframes guideBladeExit {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 
 .guide-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(16, 135, 16, 0.3);
+  padding: 18px 20px 14px;
+  border-bottom: 2px solid rgba(16, 135, 16, 0.4);
+  flex-shrink: 0;
 }
 
 .guide-xbox-logo {
@@ -1353,7 +1346,7 @@
 }
 
 .guide-xbox-text {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: #108710;
   text-shadow: 0 0 10px rgba(16, 135, 16, 0.3);
@@ -1366,8 +1359,8 @@
 }
 
 .guide-avatar-mini {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   background: #ddd;
   border: 2px solid #108710;
 }
@@ -1378,52 +1371,17 @@
   font-weight: 500;
 }
 
-.guide-tabs {
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+.guide-gamerscore-mini {
+  font-size: 0.75rem;
+  color: #ffcc00;
+  font-weight: 700;
 }
 
-.guide-tab {
-  flex: 1;
-  background: none;
-  border: none;
-  color: #888;
-  font-size: 0.85rem;
-  font-family: 'Segoe UI', sans-serif;
-  font-weight: 400;
-  padding: 12px 0;
-  cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: color 0.2s, background 0.2s;
-  position: relative;
-}
-
-.guide-tab:hover {
-  color: #ccc;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.guide-tab.active {
-  color: #108710;
-  font-weight: 600;
-}
-
-.guide-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 20%;
-  width: 60%;
-  height: 2px;
-  background: #108710;
-}
-
+/* Scrollable content */
 .guide-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0;
 }
 
 .guide-content::-webkit-scrollbar {
@@ -1439,66 +1397,141 @@
   border-radius: 2px;
 }
 
-.guide-tab-content {
-  padding: 0;
-}
-
 .guide-section {
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.guide-section:last-child {
+  border-bottom: none;
+}
+
 .guide-section-title {
-  margin: 0 0 12px 0;
-  font-size: 0.75rem;
+  margin: 0 0 10px 0;
+  font-size: 0.7rem;
   font-weight: 600;
-  color: #666;
+  color: #555;
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
 
-.guide-stat-row {
+/* Active App */
+.guide-active-app-section {
+  background: rgba(16, 135, 16, 0.08);
+  border-bottom: 1px solid rgba(16, 135, 16, 0.2);
+}
+
+.guide-active-app {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 8px 10px;
+  background: rgba(16, 135, 16, 0.12);
+  border: 1px solid rgba(16, 135, 16, 0.25);
 }
 
-.guide-stat-label {
-  font-size: 0.85rem;
-  color: #999;
+.guide-active-app-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
-.guide-stat-value {
+.guide-active-app-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #108710;
+  flex-shrink: 0;
+  animation: guidePulse 2s ease-in-out infinite;
+}
+
+@keyframes guidePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.guide-active-app-name {
   font-size: 0.9rem;
   color: #ebebeb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.guide-active-app-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.guide-active-app-close:hover {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.15);
+}
+
+/* Quick Nav Grid */
+.guide-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.guide-nav-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #999;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.guide-nav-tile:hover {
+  background: rgba(16, 135, 16, 0.12);
+  color: #ebebeb;
+  border-color: rgba(16, 135, 16, 0.25);
+}
+
+.guide-nav-tile.active {
+  background: rgba(16, 135, 16, 0.18);
+  color: #108710;
+  border-color: rgba(16, 135, 16, 0.4);
+}
+
+.guide-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-nav-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   font-weight: 500;
 }
 
-.guide-stat-value.gamerscore {
-  color: #ffcc00;
-  font-weight: 700;
-}
-
-.guide-stat-highlight {
-  color: #108710 !important;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.guide-stat-on {
-  color: #108710;
-}
-
+/* List items (reused) */
 .guide-list-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   margin: 2px 0;
   cursor: pointer;
   transition: background 0.15s;
-  border-radius: 2px;
 }
 
 .guide-list-item:hover {
@@ -1506,8 +1539,8 @@
 }
 
 .guide-list-thumb {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   overflow: hidden;
   flex-shrink: 0;
   background: #222;
@@ -1540,63 +1573,54 @@
   letter-spacing: 2px;
 }
 
-.guide-pinned-badge {
-  margin-left: auto;
-  font-size: 0.75rem;
-}
-
-.guide-list-more {
-  font-size: 0.75rem;
-  color: #666;
-  text-align: center;
-  padding: 8px;
-}
-
-.guide-empty {
-  font-size: 0.85rem;
-  color: #555;
-  text-align: center;
-  padding: 20px;
-  font-style: italic;
-}
-
-.guide-action-btn {
+/* Subdomain chips */
+.guide-subdomain-chips {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.guide-subdomain-chip {
+  padding: 5px 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #ccc;
-  font-size: 0.9rem;
+  color: #bbb;
+  font-size: 0.75rem;
   font-family: 'Segoe UI', sans-serif;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  margin-bottom: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.guide-action-btn:hover {
+.guide-subdomain-chip:hover {
   background: rgba(16, 135, 16, 0.15);
+  color: #ebebeb;
   border-color: rgba(16, 135, 16, 0.3);
 }
 
-.guide-action-icon {
-  font-size: 1.1rem;
+/* System controls */
+.guide-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* Guide volume control */
-.guide-volume-control {
+.guide-control-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
 }
 
-.guide-volume-label {
-  font-size: 0.85rem;
+.guide-control-label {
+  font-size: 0.8rem;
   color: #999;
-  min-width: 55px;
+  min-width: 90px;
+}
+
+.guide-control-value {
+  font-size: 0.75rem;
+  color: #666;
+  min-width: 32px;
+  text-align: right;
 }
 
 .guide-volume-slider {
@@ -1606,21 +1630,73 @@
   accent-color: #108710;
 }
 
-.guide-volume-mute {
-  background: none;
+/* Toggle switch */
+.guide-toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #333;
   border: none;
-  font-size: 1.1rem;
   cursor: pointer;
-  padding: 4px;
+  position: relative;
+  transition: background 0.2s;
+  padding: 0;
 }
 
-/* Guide footer */
+.guide-toggle.on {
+  background: #108710;
+}
+
+.guide-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+}
+
+.guide-toggle.on .guide-toggle-thumb {
+  transform: translateX(18px);
+}
+
+/* Quick actions grid */
+.guide-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.guide-action-tile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #bbb;
+  font-size: 0.8rem;
+  font-family: 'Segoe UI', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.guide-action-tile:hover {
+  background: rgba(16, 135, 16, 0.12);
+  color: #ebebeb;
+  border-color: rgba(16, 135, 16, 0.25);
+}
+
+/* Footer */
 .guide-footer {
-  padding: 16px 20px;
-  border-top: 1px solid rgba(16, 135, 16, 0.3);
+  padding: 14px 20px;
+  border-top: 2px solid rgba(16, 135, 16, 0.4);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .guide-footer-btn {
@@ -1658,12 +1734,11 @@
 .guide-footer-hint {
   display: flex;
   justify-content: center;
-  gap: 16px;
 }
 
 .guide-shortcut-hint {
   font-size: 0.7rem;
-  color: #555;
+  color: #444;
   letter-spacing: 0.5px;
 }
 
