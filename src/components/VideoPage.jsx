@@ -14,6 +14,8 @@ export default function VideoPage({ isActive }) {
   const [showPlayer, setShowPlayer] = useState(false)
   const [currentVideo, setCurrentVideo] = useState(null)
   const [showList, setShowList] = useState(false)
+  const [activeTileIndex, setActiveTileIndex] = useState(null)
+  const [tileOverrides, setTileOverrides] = useState({})
   const folderInputRef = useRef(null)
 
   useEffect(() => {
@@ -49,14 +51,16 @@ export default function VideoPage({ isActive }) {
         
         const mediaFiles = getFilesRecursively(mediaDir)
         setVideos(mediaFiles)
+        setTileOverrides({})
       } catch (e) {
         console.log('Media scan failed:', e.message)
       }
     }
   }, [mediaDir])
 
-  const openVideo = (video) => {
+  const openVideo = (video, tileIndex = null) => {
     setCurrentVideo(video)
+    setActiveTileIndex(tileIndex)
     setShowPlayer(true)
   }
 
@@ -74,8 +78,12 @@ export default function VideoPage({ isActive }) {
   }
 
   const closePlayer = () => {
+    if (activeTileIndex !== null && currentVideo) {
+      setTileOverrides(prev => ({ ...prev, [activeTileIndex]: currentVideo }))
+    }
     setShowPlayer(false)
     setCurrentVideo(null)
+    setActiveTileIndex(null)
   }
 
   const openFolders = async () => {
@@ -109,6 +117,7 @@ export default function VideoPage({ isActive }) {
         }
       })
     setVideos(mediaFiles)
+    setTileOverrides({})
     setMediaDir(e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Media')
   }
 
@@ -128,14 +137,19 @@ export default function VideoPage({ isActive }) {
 
         <div className="video-center">
           {videos.length > 0 ? (
-            <Tile className="video-thumb-tile" onClick={() => openVideo(videos[0])}>
-              {videos[0].isVideo ? (
-                <video src={videos[0].path} className="video-thumb" muted preload="metadata" decoding="async" />
-              ) : (
-                <img src={videos[0].path} className="video-thumb" decoding="async" loading="lazy" />
-              )}
-              <div className="video-thumb-name">{videos[0].name}</div>
-            </Tile>
+            (() => {
+              const item = tileOverrides[0] || videos[0]
+              return (
+                <Tile className="video-thumb-tile" onClick={() => openVideo(item, 0)}>
+                  {item.isVideo ? (
+                    <video src={item.path} className="video-thumb" muted preload="metadata" decoding="async" />
+                  ) : (
+                    <img src={item.path} className="video-thumb" decoding="async" loading="lazy" />
+                  )}
+                  <div className="video-thumb-name">{item.name}</div>
+                </Tile>
+              )
+            })()
           ) : (
             <Tile label="No Media" />
           )}
@@ -143,28 +157,38 @@ export default function VideoPage({ isActive }) {
 
         <div className="video-right-1">
           {videos.length > 1 ? (
-            <Tile className="video-thumb-tile" onClick={() => openVideo(videos[1])}>
-              {videos[1].isVideo ? (
-                <video src={videos[1].path} className="video-thumb" muted preload="metadata" decoding="async" />
-              ) : (
-                <img src={videos[1].path} className="video-thumb" decoding="async" loading="lazy" />
-              )}
-              <div className="video-thumb-name">{videos[1].name}</div>
-            </Tile>
+            (() => {
+              const item = tileOverrides[1] || videos[1]
+              return (
+                <Tile className="video-thumb-tile" onClick={() => openVideo(item, 1)}>
+                  {item.isVideo ? (
+                    <video src={item.path} className="video-thumb" muted preload="metadata" decoding="async" />
+                  ) : (
+                    <img src={item.path} className="video-thumb" decoding="async" loading="lazy" />
+                  )}
+                  <div className="video-thumb-name">{item.name}</div>
+                </Tile>
+              )
+            })()
           ) : (
             <Tile />
           )}
         </div>
         <div className="video-right-2">
           {videos.length > 2 ? (
-            <Tile className="video-thumb-tile" onClick={() => openVideo(videos[2])}>
-              {videos[2].isVideo ? (
-                <video src={videos[2].path} className="video-thumb" muted preload="metadata" decoding="async" />
-              ) : (
-                <img src={videos[2].path} className="video-thumb" decoding="async" loading="lazy" />
-              )}
-              <div className="video-thumb-name">{videos[2].name}</div>
-            </Tile>
+            (() => {
+              const item = tileOverrides[2] || videos[2]
+              return (
+                <Tile className="video-thumb-tile" onClick={() => openVideo(item, 2)}>
+                  {item.isVideo ? (
+                    <video src={item.path} className="video-thumb" muted preload="metadata" decoding="async" />
+                  ) : (
+                    <img src={item.path} className="video-thumb" decoding="async" loading="lazy" />
+                  )}
+                  <div className="video-thumb-name">{item.name}</div>
+                </Tile>
+              )
+            })()
           ) : (
             <Tile />
           )}
@@ -179,7 +203,7 @@ export default function VideoPage({ isActive }) {
           title="My Media"
           items={videos.map(v => ({ ...v, id: v.path, icon: v.path }))}
           onClose={() => setShowList(false)}
-          onItemAction={(v) => { openVideo(v); setShowList(false); }}
+          onItemAction={(v) => { openVideo(v) }}
           filters={[{ label: 'all media' }]}
           emptyMessage="No media found. Select a folder containing videos or photos."
           isActive={isActive}
