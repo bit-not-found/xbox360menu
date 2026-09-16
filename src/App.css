@@ -1951,6 +1951,8 @@ body > canvas#canvas {
   overflow-y: hidden;
   align-items: stretch;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
 }
 
 .collection-cards-row::-webkit-scrollbar {
@@ -1976,6 +1978,10 @@ body > canvas#canvas {
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 220px;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .collection-card:hover {

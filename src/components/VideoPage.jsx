@@ -130,9 +130,9 @@ export default function VideoPage({ isActive }) {
           {videos.length > 0 ? (
             <Tile className="video-thumb-tile" onClick={() => openVideo(videos[0])}>
               {videos[0].isVideo ? (
-                <video src={videos[0].path} className="video-thumb" muted preload="metadata" />
+                <video src={videos[0].path} className="video-thumb" muted preload="metadata" decoding="async" />
               ) : (
-                <img src={videos[0].path} className="video-thumb" />
+                <img src={videos[0].path} className="video-thumb" decoding="async" loading="lazy" />
               )}
               <div className="video-thumb-name">{videos[0].name}</div>
             </Tile>
@@ -145,9 +145,9 @@ export default function VideoPage({ isActive }) {
           {videos.length > 1 ? (
             <Tile className="video-thumb-tile" onClick={() => openVideo(videos[1])}>
               {videos[1].isVideo ? (
-                <video src={videos[1].path} className="video-thumb" muted preload="metadata" />
+                <video src={videos[1].path} className="video-thumb" muted preload="metadata" decoding="async" />
               ) : (
-                <img src={videos[1].path} className="video-thumb" />
+                <img src={videos[1].path} className="video-thumb" decoding="async" loading="lazy" />
               )}
               <div className="video-thumb-name">{videos[1].name}</div>
             </Tile>
@@ -159,9 +159,9 @@ export default function VideoPage({ isActive }) {
           {videos.length > 2 ? (
             <Tile className="video-thumb-tile" onClick={() => openVideo(videos[2])}>
               {videos[2].isVideo ? (
-                <video src={videos[2].path} className="video-thumb" muted preload="metadata" />
+                <video src={videos[2].path} className="video-thumb" muted preload="metadata" decoding="async" />
               ) : (
-                <img src={videos[2].path} className="video-thumb" />
+                <img src={videos[2].path} className="video-thumb" decoding="async" loading="lazy" />
               )}
               <div className="video-thumb-name">{videos[2].name}</div>
             </Tile>
@@ -185,9 +185,9 @@ export default function VideoPage({ isActive }) {
           isActive={isActive}
           renderItem={(v) => (
             v.isVideo ? (
-              <video src={v.path} muted preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <video src={v.path} muted preload="metadata" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
-              <img src={v.path} alt={v.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={v.path} alt={v.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             )
           )}
         />

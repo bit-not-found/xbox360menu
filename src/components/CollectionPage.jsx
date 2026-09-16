@@ -106,7 +106,7 @@ export default function CollectionPage({
               >
                 <div className="collection-card-img">
                   {renderItem ? renderItem(item) : (
-                    item.icon ? <img src={item.icon} alt={item.name} /> : <div className="collection-card-placeholder" />
+                    item.icon ? <img src={item.icon} alt={item.name} decoding="async" loading="lazy" /> : <div className="collection-card-placeholder" />
                   )}
                 </div>
                 <div className="collection-card-bottom">
