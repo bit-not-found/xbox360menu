@@ -209,13 +209,13 @@ export default function CollectionPage({
         {/* Secondary filters row */}
         <div className="collection-secondary-filters">
           <div className="collection-dropdown-group">
-            <label className="collection-dropdown-label">Game</label>
+            <label className="collection-dropdown-label">Folder</label>
             <select
               className="collection-dropdown"
               value={gameFilter}
               onChange={(e) => setGameFilter(e.target.value)}
             >
-              <option value="">All games</option>
+              <option value="">All folders</option>
               {games.map(g => (
                 <option key={g} value={g}>{g}</option>
               ))}
