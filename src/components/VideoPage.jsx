@@ -41,7 +41,11 @@ export default function VideoPage({ isActive }) {
                   name: file.replace(/\.[^.]+$/, ''),
                   file: file,
                   path: formattedPath,
-                  isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(file)
+                  isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(file),
+                  isImage: /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file),
+                  mtime: fs.statSync(filePath).mtimeMs,
+                  size: fs.statSync(filePath).size,
+                  source: 'local',
                 })
               }
             }
@@ -113,7 +117,11 @@ export default function VideoPage({ isActive }) {
           name: f.name.replace(/\.[^.]+$/, ''),
           file: f.name,
           path: url,
-          isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(f.name)
+          isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(f.name),
+          isImage: /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(f.name),
+          mtime: f.lastModified,
+          size: f.size,
+          source: 'local',
         }
       })
     setVideos(mediaFiles)
