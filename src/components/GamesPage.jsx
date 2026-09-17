@@ -584,11 +584,12 @@ export default function GamesPage({ onOpenApp, isActive }) {
             else launchGame(game)
             closeMyGames()
           }}
-          showPinButton
-          onPin={(game, e) => {
-            e.stopPropagation()
-            if (game.isRom) return
-            togglePin(game, e)
+          onEditItem={(item) => {
+            if (item.isRom) {
+              openEditModal({ ...item, ...item.romData, isRom: true }, new Event('click'))
+            } else {
+              openEditModal(item, new Event('click'))
+            }
           }}
           emptyMessage="No games added yet. Click + Add Game to get started."
           isActive={isActive}
