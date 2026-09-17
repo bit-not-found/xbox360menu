@@ -612,6 +612,10 @@ export default function GamesPage({ onOpenApp, isActive }) {
           }}
           renderItem={(item) => {
             if (item.isRom) {
+              const coverImg = item.icon || item.banner
+              if (coverImg) {
+                return <img src={coverImg} alt={item.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              }
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
@@ -632,22 +636,28 @@ export default function GamesPage({ onOpenApp, isActive }) {
       {showMyRoms && (
         <CollectionPage
           title="My ROMs"
-          items={allRoms.map(r => ({ ...r, id: r.name, icon: null }))}
+          items={allRoms.map(r => ({ ...r, id: r.name }))}
           onClose={closeMyRoms}
           onItemAction={(rom) => { launchRom(rom); closeMyRoms(); }}
           filters={[{ label: 'all roms' }]}
           emptyMessage="No ROMs found. Select a ROM folder to scan for games."
           isActive={isActive}
-          renderItem={(rom) => (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
-                <rect x="2" y="6" width="20" height="12" rx="2" />
-                <circle cx="8" cy="12" r="2" />
-                <rect x="13" y="10" width="5" height="4" rx="1" />
-              </svg>
-              <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{rom.systemName}</span>
-            </div>
-          )}
+          renderItem={(rom) => {
+            const coverImg = rom.icon || rom.banner
+            if (coverImg) {
+              return <img src={coverImg} alt={rom.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <circle cx="8" cy="12" r="2" />
+                  <rect x="13" y="10" width="5" height="4" rx="1" />
+                </svg>
+                <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{rom.systemName}</span>
+              </div>
+            )
+          }}
         />
       )}
 
