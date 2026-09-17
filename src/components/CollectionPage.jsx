@@ -25,6 +25,20 @@ const GAME_CHIPS = [
   { id: 'favorites', label: 'Favorites' },
 ]
 
+const MUSIC_CHIPS = [
+  { id: 'all', label: 'All' },
+  { id: 'pinned', label: 'Pinned' },
+  { id: 'favorites', label: 'Favorites' },
+]
+
+const MUSIC_SORT_OPTIONS = [
+  { id: 'name', label: 'Name A-Z' },
+  { id: 'name-desc', label: 'Name Z-A' },
+  { id: 'artist', label: 'Artist' },
+  { id: 'album', label: 'Album' },
+  { id: 'duration', label: 'Duration' },
+]
+
 const DATE_RANGES = [
   { id: 'all', label: 'All time' },
   { id: '7d', label: 'Last 7 days' },
@@ -73,7 +87,9 @@ export default function CollectionPage({
   const [favorites, setFavorites] = useState(() => new Set(loadFavorites()))
   const [confirmDelete, setConfirmDelete] = useState(null)
 
-  const chips = mode === 'games' ? GAME_CHIPS : MEDIA_CHIPS
+  const chips = mode === 'games' ? GAME_CHIPS : mode === 'music' ? MUSIC_CHIPS : MEDIA_CHIPS
+
+  const sortOptions = mode === 'music' ? MUSIC_SORT_OPTIONS : SORT_OPTIONS
 
   const [systemFilter, setSystemFilter] = useState('')
 
@@ -115,6 +131,13 @@ export default function CollectionPage({
         favorites: items.filter(i => favorites.has(i.id)).length,
       }
     }
+    if (mode === 'music') {
+      return {
+        all: items.length,
+        pinned: items.filter(i => i.isPinned).length,
+        favorites: items.filter(i => favorites.has(i.id)).length,
+      }
+    }
     return {
       all: items.length,
       clips: items.filter(i => i.isVideo).length,
@@ -150,6 +173,15 @@ export default function CollectionPage({
           result = result.filter(i => favorites.has(i.id))
           break
       }
+    } else if (mode === 'music') {
+      switch (categoryFilter) {
+        case 'pinned':
+          result = result.filter(i => i.isPinned)
+          break
+        case 'favorites':
+          result = result.filter(i => favorites.has(i.id))
+          break
+      }
     } else {
       switch (categoryFilter) {
         case 'clips':
@@ -172,7 +204,7 @@ export default function CollectionPage({
       result = result.filter(i => i.systemName === systemFilter)
     }
 
-    // Game filter
+    // Game/artist filter
     if (gameFilter) {
       result = result.filter(i => {
         const name = i.game || i.name || ''
@@ -198,6 +230,18 @@ export default function CollectionPage({
         break
       case 'name':
         result.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        break
+      case 'name-desc':
+        result.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+        break
+      case 'artist':
+        result.sort((a, b) => (a.artist || 'zzz').localeCompare(b.artist || 'zzz'))
+        break
+      case 'album':
+        result.sort((a, b) => (a.album || 'zzz').localeCompare(b.album || 'zzz'))
+        break
+      case 'duration':
+        result.sort((a, b) => (a.duration || 0) - (b.duration || 0))
         break
     }
 
@@ -266,6 +310,14 @@ export default function CollectionPage({
                   + Add Game
                 </button>
               )}
+              {mode === 'music' && onAddItem && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddItem() }}
+                >
+                  + Add Music Folder
+                </button>
+              )}
             </div>
           </div>
           <div className="collection-title-area">
@@ -291,6 +343,18 @@ export default function CollectionPage({
                 ))}
               </select>
             </div>
+          ) : mode === 'music' ? (
+            <div className="collection-dropdown-group">
+              <label className="collection-dropdown-label">Search</label>
+              <input
+                type="text"
+                className="collection-dropdown"
+                placeholder="Search by name, artist, album..."
+                value={gameFilter}
+                onChange={(e) => setGameFilter(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
+            </div>
           ) : (
             <div className="collection-dropdown-group">
               <label className="collection-dropdown-label">Folder</label>
@@ -307,18 +371,20 @@ export default function CollectionPage({
             </div>
           )}
 
-          <div className="collection-dropdown-group">
-            <label className="collection-dropdown-label">Date</label>
-            <select
-              className="collection-dropdown"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-            >
-              {DATE_RANGES.map(r => (
-                <option key={r.id} value={r.id}>{r.label}</option>
-              ))}
-            </select>
-          </div>
+          {mode !== 'music' && (
+            <div className="collection-dropdown-group">
+              <label className="collection-dropdown-label">Date</label>
+              <select
+                className="collection-dropdown"
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+              >
+                {DATE_RANGES.map(r => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="collection-dropdown-group">
             <label className="collection-dropdown-label">Sort by</label>
@@ -327,7 +393,7 @@ export default function CollectionPage({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              {SORT_OPTIONS.map(s => (
+              {sortOptions.map(s => (
                 <option key={s.id} value={s.id}>{s.label}</option>
               ))}
             </select>

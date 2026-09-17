@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
+import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
@@ -313,38 +314,44 @@ export default function MusicPage({ isActive }) {
 
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleFolderInput} accept="audio/*" />
 
-      {/* Playlist Modal */}
-      {showList && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content video-list-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>My Musics</h2>
-            {playlist.length === 0 ? (
-              <p className="video-empty">No music found. Select a Music Folder to load songs.</p>
-            ) : (
-              <div className="video-list-items">
-                {playlist.map((track, index) => {
-                  const isPinned = pinnedTracks.includes(track.path)
-                  return (
-                    <div key={track.id} className="video-list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div onClick={() => playTrack(index)} style={{ cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center' }}>
-                        <img src="./assets/icons/Music.png" alt="music" style={{ width: 16, height: 16, marginRight: 8 }} />
-                        <span className="video-list-name" style={{ color: index === currentTrackIndex ? '#108710' : '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>{track.name}</span>
-                        {track.artist && <span style={{ color: '#888', fontSize: '0.8rem', marginLeft: 8 }}>{track.artist}</span>}
-                      </div>
-                      <button className="modal-btn" style={{ padding: '2px 10px', fontSize: '12px', height: 'auto', backgroundColor: isPinned ? '#ff4444' : '#107c10' }} onClick={(e) => togglePinTrack(track.path, e)}>
-                        {isPinned ? 'Unpin' : 'Pin'}
-                      </button>
-                    </div>
-                  )
-                })}
+      {/* MY MUSIC COLLECTION */}
+      {showList && (
+        <CollectionPage
+          title="My Music"
+          items={playlist.map(t => ({
+            ...t,
+            id: t.id || t.path,
+            icon: t.cover || '',
+          }))}
+          onClose={() => setShowList(false)}
+          onItemAction={(track) => {
+            const idx = playlist.findIndex(t => t.id === track.id || t.path === track.path)
+            if (idx !== -1) setCurrentTrackIndex(idx)
+          }}
+          onPin={(track) => togglePinTrack(track.path, new Event('click'))}
+          onEditItem={(track) => handleMusicContextMenu(new Event('contextmenu'), track.path)}
+          onDeleteItem={(track) => {
+            setPlaylist(prev => prev.filter(t => t.path !== track.path))
+            setPinnedTracks(prev => prev.filter(p => p !== track.path))
+          }}
+          emptyMessage="No music found. Click + Add Music Folder to load songs."
+          isActive={isActive}
+          mode="music"
+          showPinButton
+          onAddItem={selectFolder}
+          renderItem={(track) => {
+            const coverUrl = customMusicCovers[track.path] || track.cover || ''
+            if (coverUrl) {
+              return <img src={coverUrl} alt={track.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            }
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
+                <img src="./assets/icons/Music.png" alt="" style={{ width: 48, height: 48, opacity: 0.6 }} />
+                <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{track.artist || 'Unknown Artist'}</span>
               </div>
-            )}
-            <div className="modal-actions">
-              <button className="modal-btn cancel" onClick={() => setShowList(false)}>Close</button>
-            </div>
-          </div>
-        </div>,
-        document.body
+            )
+          }}
+        />
       )}
 
       {/* Editing Modal for Custom Covers */}
