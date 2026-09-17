@@ -429,6 +429,37 @@
   object-fit: cover;
 }
 
+.game-type-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  background: #222;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.game-type-btn {
+  flex: 1;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.game-type-btn:hover {
+  color: #ccc;
+}
+
+.game-type-btn.active {
+  background: #107c10;
+  color: #fff;
+}
+
 .modal-actions {
   display: flex;
   gap: 10px;
@@ -1919,6 +1950,17 @@ body > canvas#canvas {
   opacity: 0.8;
 }
 
+.collection-chip-add {
+  border-color: #107c10;
+  color: #107c10;
+}
+
+.collection-chip-add:hover {
+  background: #107c10;
+  border-color: #107c10;
+  color: #fff;
+}
+
 /* Secondary filters row */
 .collection-secondary-filters {
   display: flex;
@@ -2106,6 +2148,46 @@ body > canvas#canvas {
 
 .collection-card-fav.active:hover {
   color: #ff6666;
+}
+
+.collection-card-delete {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  z-index: 3;
+  padding: 0;
+}
+
+.collection-card:hover .collection-card-delete {
+  opacity: 1;
+}
+
+.collection-card-delete:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ff4444;
+}
+
+.collection-card-delete.confirm {
+  opacity: 1;
+  background: #ff4444;
+  color: #fff;
+}
+
+.collection-card-delete.confirm:hover {
+  background: #ff6666;
+  color: #fff;
 }
 
 .collection-card-img img {

@@ -9,12 +9,20 @@ const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(()
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 
-const CATEGORY_CHIPS = [
+const MEDIA_CHIPS = [
   { id: 'all', label: 'All' },
   { id: 'clips', label: 'Clips' },
   { id: 'screenshots', label: 'Screenshots' },
   { id: 'favorites', label: 'Favorites' },
   { id: 'local', label: 'Local' },
+]
+
+const GAME_CHIPS = [
+  { id: 'all', label: 'All' },
+  { id: 'executables', label: 'Executables' },
+  { id: 'roms', label: 'ROMs' },
+  { id: 'pinned', label: 'Pinned' },
+  { id: 'favorites', label: 'Favorites' },
 ]
 
 const DATE_RANGES = [
@@ -51,6 +59,10 @@ export default function CollectionPage({
   emptyMessage = 'No items to show here.',
   renderItem,
   isActive = true,
+  mode = 'media',
+  onAddItem,
+  onDeleteItem,
+  systems = [],
 }) {
   const [isClosing, setIsClosing] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -58,6 +70,11 @@ export default function CollectionPage({
   const [dateRange, setDateRange] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
   const [favorites, setFavorites] = useState(() => new Set(loadFavorites()))
+  const [confirmDelete, setConfirmDelete] = useState(null)
+
+  const chips = mode === 'games' ? GAME_CHIPS : MEDIA_CHIPS
+
+  const [systemFilter, setSystemFilter] = useState('')
 
   // Persist favorites
   useEffect(() => { saveFavorites([...favorites]) }, [favorites])
@@ -87,13 +104,24 @@ export default function CollectionPage({
   }, [items])
 
   // Compute counts for each category
-  const counts = useMemo(() => ({
-    all: items.length,
-    clips: items.filter(i => i.isVideo).length,
-    screenshots: items.filter(i => i.isImage).length,
-    favorites: items.filter(i => favorites.has(i.id)).length,
-    local: items.filter(i => i.source !== 'xbox').length,
-  }), [items, favorites])
+  const counts = useMemo(() => {
+    if (mode === 'games') {
+      return {
+        all: items.length,
+        executables: items.filter(i => i.exe && !i.isRom).length,
+        roms: items.filter(i => i.isRom).length,
+        pinned: items.filter(i => i.isPinned).length,
+        favorites: items.filter(i => favorites.has(i.id)).length,
+      }
+    }
+    return {
+      all: items.length,
+      clips: items.filter(i => i.isVideo).length,
+      screenshots: items.filter(i => i.isImage).length,
+      favorites: items.filter(i => favorites.has(i.id)).length,
+      local: items.filter(i => i.source !== 'xbox').length,
+    }
+  }, [items, favorites, mode])
 
   // Stable timestamp for date filtering
   const [now] = useState(() => Date.now())
@@ -106,19 +134,41 @@ export default function CollectionPage({
     let result = [...items]
 
     // Category filter
-    switch (categoryFilter) {
-      case 'clips':
-        result = result.filter(i => i.isVideo)
-        break
-      case 'screenshots':
-        result = result.filter(i => i.isImage)
-        break
-      case 'favorites':
-        result = result.filter(i => favorites.has(i.id))
-        break
-      case 'local':
-        result = result.filter(i => i.source !== 'xbox')
-        break
+    if (mode === 'games') {
+      switch (categoryFilter) {
+        case 'executables':
+          result = result.filter(i => i.exe && !i.isRom)
+          break
+        case 'roms':
+          result = result.filter(i => i.isRom)
+          break
+        case 'pinned':
+          result = result.filter(i => i.isPinned)
+          break
+        case 'favorites':
+          result = result.filter(i => favorites.has(i.id))
+          break
+      }
+    } else {
+      switch (categoryFilter) {
+        case 'clips':
+          result = result.filter(i => i.isVideo)
+          break
+        case 'screenshots':
+          result = result.filter(i => i.isImage)
+          break
+        case 'favorites':
+          result = result.filter(i => favorites.has(i.id))
+          break
+        case 'local':
+          result = result.filter(i => i.source !== 'xbox')
+          break
+      }
+    }
+
+    // System filter (games mode only)
+    if (mode === 'games' && systemFilter) {
+      result = result.filter(i => i.systemName === systemFilter)
     }
 
     // Game filter
@@ -151,7 +201,7 @@ export default function CollectionPage({
     }
 
     return result
-  }, [items, categoryFilter, gameFilter, dateCutoff, sortBy, favorites])
+  }, [items, categoryFilter, gameFilter, dateCutoff, sortBy, favorites, mode, systemFilter])
 
   // Close when parent page becomes inactive
   useEffect(() => {
@@ -187,7 +237,7 @@ export default function CollectionPage({
           <div className="collection-filters">
             {/* Primary filter chips */}
             <div className="collection-chips">
-              {CATEGORY_CHIPS.map(chip => (
+              {chips.map(chip => (
                 <button
                   key={chip.id}
                   className={`collection-chip ${categoryFilter === chip.id ? 'active' : ''}`}
@@ -197,6 +247,14 @@ export default function CollectionPage({
                   <span className="collection-chip-count">{counts[chip.id]}</span>
                 </button>
               ))}
+              {mode === 'games' && onAddItem && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddItem() }}
+                >
+                  + Add Game
+                </button>
+              )}
             </div>
           </div>
           <div className="collection-title-area">
@@ -208,19 +266,35 @@ export default function CollectionPage({
 
         {/* Secondary filters row */}
         <div className="collection-secondary-filters">
-          <div className="collection-dropdown-group">
-            <label className="collection-dropdown-label">Folder</label>
-            <select
-              className="collection-dropdown"
-              value={gameFilter}
-              onChange={(e) => setGameFilter(e.target.value)}
-            >
-              <option value="">All folders</option>
-              {games.map(g => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
-          </div>
+          {mode === 'games' ? (
+            <div className="collection-dropdown-group">
+              <label className="collection-dropdown-label">System</label>
+              <select
+                className="collection-dropdown"
+                value={systemFilter}
+                onChange={(e) => setSystemFilter(e.target.value)}
+              >
+                <option value="">All systems</option>
+                {systems.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="collection-dropdown-group">
+              <label className="collection-dropdown-label">Folder</label>
+              <select
+                className="collection-dropdown"
+                value={gameFilter}
+                onChange={(e) => setGameFilter(e.target.value)}
+              >
+                <option value="">All folders</option>
+                {games.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="collection-dropdown-group">
             <label className="collection-dropdown-label">Date</label>
@@ -264,6 +338,35 @@ export default function CollectionPage({
                 <div className="collection-card-img">
                   {renderItem ? renderItem(item) : (
                     item.icon ? <img src={item.icon} alt={item.name} decoding="async" loading="lazy" /> : <div className="collection-card-placeholder" />
+                  )}
+                  {onDeleteItem && (
+                    <button
+                      className={`collection-card-delete ${confirmDelete === item.id ? 'confirm' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirmDelete === item.id) {
+                          playSelect()
+                          onDeleteItem(item)
+                          setConfirmDelete(null)
+                        } else {
+                          playHover()
+                          setConfirmDelete(item.id)
+                        }
+                      }}
+                      onMouseLeave={() => setConfirmDelete(null)}
+                      title={confirmDelete === item.id ? 'Click again to confirm' : 'Remove'}
+                    >
+                      {confirmDelete === item.id ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      )}
+                    </button>
                   )}
                   <button
                     className={`collection-card-fav ${favorites.has(item.id) ? 'active' : ''}`}

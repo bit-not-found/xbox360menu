@@ -32,20 +32,6 @@ const SYSTEM_CORE_MAP = {
   col: 'col'
 }
 
-const CORE_LABELS = {
-  fceumm: 'NES (FCEUmm)',
-  snes9x: 'SNES (Snes9x)',
-  mgba: 'GBA/GB/GBC (mGBA)',
-  genesis_plus_gx: 'Genesis/MD/SMS/GG (Genesis Plus GX)',
-  mednafen_pce: 'PC Engine (Mednafen)',
-  meowatch: 'Neo Geo Pocket (Meowatch)',
-  mednafen_wswan: 'WonderSwan (Mednafen)',
-  handy: 'Lynx (Handy)',
-  virtualjaguar: 'Jaguar (VirtualJag)',
-  mednafen_vb: 'Virtual Boy (Mednafen)',
-  col: 'ColecoVision (Col)'
-}
-
 const SYSTEM_NAMES = {
   nes: 'NES', sfc: 'SNES', smc: 'SNES', gba: 'GBA', gb: 'Game Boy',
   gbc: 'Game Boy Color', gen: 'Genesis', md: 'Genesis', sms: 'Master System',
@@ -78,10 +64,13 @@ export default function GamesPage({ onOpenApp, isActive }) {
   const [showIgdbSetup, setShowIgdbSetup] = useState(false)
   const [isSearchingOnline, setIsSearchingOnline] = useState(false)
   const [onlineSearchResults, setOnlineSearchResults] = useState([])
+  const [gameType, setGameType] = useState('executable')
+  const [romFile, setRomFile] = useState(null)
 
   const iconInputRef = useRef(null)
   const bannerInputRef = useRef(null)
   const exeInputRef = useRef(null)
+  const romFileInputRef = useRef(null)
   const romFolderInputRef = useRef(null)
 
   const setGames = (newVal) => {
@@ -283,8 +272,15 @@ export default function GamesPage({ onOpenApp, isActive }) {
     setEditingGameName(game.name)
     setNewGameName(game.name)
     setNewGameExe(game.exe || '')
-    setPreviewIcon(null)
-    setPreviewBanner(null)
+    setPreviewIcon(game.icon || null)
+    setPreviewBanner(game.banner || null)
+    if (game.isRom) {
+      setGameType('rom')
+      setRomFile({ name: game.name, path: game.path, ext: game.ext, system: game.system, systemName: game.systemName, core: game.core })
+    } else {
+      setGameType('executable')
+      setRomFile(null)
+    }
     setShowAddModal(true)
   }
 
@@ -292,23 +288,45 @@ export default function GamesPage({ onOpenApp, isActive }) {
     if (!newGameName) return
     const iconUrl = previewIcon || './assets/imgs/260x195-PLACEHOLDER.png'
     const bannerUrl = previewBanner || previewIcon || './assets/imgs/260x195-PLACEHOLDER.png'
-    if (editingGameName) {
-      setGames(prev => prev.map(g => g.name === editingGameName ? {
-        ...g, name: newGameName, exe: newGameExe,
-        icon: previewIcon ? iconUrl : g.icon,
-        banner: previewBanner ? bannerUrl : (previewIcon ? iconUrl : g.banner)
-      } : g))
+
+    if (gameType === 'rom' && romFile) {
+      const romEntry = {
+        name: newGameName,
+        path: romFile.path,
+        ext: romFile.ext,
+        system: romFile.system,
+        systemName: romFile.systemName,
+        core: romFile.core,
+        icon: previewIcon || null,
+        banner: previewBanner || null,
+      }
+      if (editingGameName) {
+        setRoms(prev => prev.map(r => r.name === editingGameName ? { ...r, ...romEntry } : r))
+      } else {
+        setRoms([...myRoms, romEntry])
+      }
     } else {
-      setGames([...games, {
-        name: newGameName, exe: newGameExe, icon: iconUrl, banner: bannerUrl,
-        stars: 5, isPinned: false, lastPlayed: 0
-      }])
+      if (editingGameName) {
+        setGames(prev => prev.map(g => g.name === editingGameName ? {
+          ...g, name: newGameName, exe: newGameExe,
+          icon: previewIcon || g.icon,
+          banner: previewBanner || g.banner
+        } : g))
+      } else {
+        setGames([...games, {
+          name: newGameName, exe: newGameExe, icon: iconUrl, banner: bannerUrl,
+          stars: 5, isPinned: false, lastPlayed: 0
+        }])
+      }
     }
+
     setNewGameName('')
     setNewGameExe('')
     setPreviewIcon(null)
     setPreviewBanner(null)
     setEditingGameName(null)
+    setGameType('executable')
+    setRomFile(null)
     setShowAddModal(false)
   }
 
@@ -377,6 +395,19 @@ export default function GamesPage({ onOpenApp, isActive }) {
     if (file) setNewGameExe(isElectron() ? file.path : file.name)
   }
 
+  const handleRomFileSelectForAdd = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+
+    const { ext, system, systemName } = detectSystem(file.name)
+    const name = file.name.replace(/\.[^.]+$/, '')
+    const filePath = isElectron() ? file.path : file.name
+
+    setRomFile({ name, path: filePath, file, ext, system, systemName, core: SYSTEM_CORE_MAP[ext] || 'fceumm' })
+    if (!newGameName) setNewGameName(name)
+  }
+
   const openFileElectron = async (setter, filters) => {
     if (!isElectron()) return
     try {
@@ -390,6 +421,38 @@ export default function GamesPage({ onOpenApp, isActive }) {
     } catch (err) {
       console.error(err)
     }
+  }
+
+  // Combined list of all games (myGames + myRoms) for My Games collection
+  const allMyGames = [
+    ...games.map(g => ({ ...g, id: g.name, isRom: false })),
+    ...myRoms.map(r => ({
+      id: r.name,
+      name: r.name,
+      icon: null,
+      banner: null,
+      systemName: r.systemName,
+      core: r.core,
+      exe: null,
+      isRom: true,
+      stars: 0,
+      isPinned: false,
+      lastPlayed: 0,
+      romData: r,
+    }))
+  ]
+
+  const myGameSystems = [...new Set(allMyGames.map(g => g.systemName).filter(Boolean))].sort()
+
+  const openAddGameFromMyGames = () => {
+    setEditingGameName(null)
+    setNewGameName('')
+    setNewGameExe('')
+    setPreviewIcon(null)
+    setPreviewBanner(null)
+    setGameType('executable')
+    setRomFile(null)
+    setShowAddModal(true)
   }
 
   const allRoms = myRoms
@@ -427,8 +490,8 @@ export default function GamesPage({ onOpenApp, isActive }) {
         </div>
         <div className="games-c1-r2">
           <Tile
-            label="ROM Folder"
-            icon={<img src="./assets/icons/Folder.png" alt="ROM Folder" />}
+            label="Open Game"
+            icon={<img src="./assets/icons/Folder.png" alt="Open Game" />}
             onClick={openRomFolder}
           />
         </div>
@@ -515,14 +578,43 @@ export default function GamesPage({ onOpenApp, isActive }) {
       {showMyGames && (
         <CollectionPage
           title="My Games"
-          items={games.map(g => ({ ...g, id: g.name }))}
+          items={allMyGames}
           onClose={closeMyGames}
-          onItemAction={(game) => { launchGame(game); closeMyGames(); }}
+          onItemAction={(game) => {
+            if (game.isRom) launchRom(game.romData)
+            else launchGame(game)
+            closeMyGames()
+          }}
           showPinButton
-          onPin={togglePin}
-          filters={[{ label: 'all games' }]}
-          emptyMessage="No games added yet."
+          onPin={(game, e) => {
+            e.stopPropagation()
+            if (game.isRom) return
+            togglePin(game, e)
+          }}
+          emptyMessage="No games added yet. Click + Add Game to get started."
           isActive={isActive}
+          mode="games"
+          systems={myGameSystems}
+          onAddItem={openAddGameFromMyGames}
+          onDeleteItem={(item) => {
+            if (item.isRom) return
+            setGames(prev => prev.filter(g => g.name !== item.name))
+          }}
+          renderItem={(item) => {
+            if (item.isRom) {
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <circle cx="8" cy="12" r="2" />
+                    <rect x="13" y="10" width="5" height="4" rx="1" />
+                  </svg>
+                  <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{item.systemName}</span>
+                </div>
+              )
+            }
+            return null
+          }}
         />
       )}
 
@@ -555,6 +647,24 @@ export default function GamesPage({ onOpenApp, isActive }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h2>{editingGameName ? 'Edit Game' : 'Add Game'}</h2>
 
+            {/* Game Type Toggle */}
+            {!editingGameName && (
+              <div className="game-type-toggle">
+                <button
+                  className={`game-type-btn ${gameType === 'executable' ? 'active' : ''}`}
+                  onClick={() => setGameType('executable')}
+                >
+                  Executable
+                </button>
+                <button
+                  className={`game-type-btn ${gameType === 'rom' ? 'active' : ''}`}
+                  onClick={() => setGameType('rom')}
+                >
+                  ROM File
+                </button>
+              </div>
+            )}
+
             <label>Game Name</label>
             <div style={{ display: 'flex', gap: 5 }}>
               <input
@@ -573,40 +683,86 @@ export default function GamesPage({ onOpenApp, isActive }) {
               </button>
             </div>
 
-            <label>Executable Path</label>
-            <div style={{ display: 'flex', gap: 5 }}>
-              <input
-                type="text"
-                placeholder="C:\Games\game.exe"
-                value={newGameExe}
-                onChange={(e) => setNewGameExe(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              {isElectron() ? (
-                <button
-                  className="modal-btn"
-                  onClick={() => openFileElectron(setNewGameExe, [{ name: 'Executables', extensions: ['exe', 'bat', 'lnk'] }])}
-                  style={{ padding: '0 15px', fontSize: 20 }}
-                >
-                  +
-                </button>
-              ) : (
-                <>
-                  <input ref={exeInputRef} type="file" style={{ display: 'none' }} onChange={handleExeFile} accept=".exe,.bat,.lnk" />
+            {/* ROM File Selector */}
+            {gameType === 'rom' && (
+              <>
+                <label>ROM File</label>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <input
+                    type="text"
+                    placeholder="Select a ROM file..."
+                    value={romFile ? `${romFile.name}.${romFile.ext}` : ''}
+                    readOnly
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    ref={romFileInputRef}
+                    type="file"
+                    accept=".nes,.sfc,.smc,.gba,.gb,.gbc,.gen,.md,.sms,.gg,.pce,.ngp,.ngpc,.ws,.wsc,.lnx,.jag,.vb,.col,.sg"
+                    style={{ display: 'none' }}
+                    onChange={handleRomFileSelectForAdd}
+                  />
                   <button
                     className="modal-btn"
-                    onClick={() => exeInputRef.current?.click()}
+                    onClick={() => romFileInputRef.current?.click()}
                     style={{ padding: '0 15px', fontSize: 20 }}
                   >
                     +
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+                {romFile && (
+                  <div style={{ fontSize: '0.7rem', color: '#107c10', marginTop: -8, marginBottom: 5 }}>
+                    System: {romFile.systemName} ({romFile.ext.toUpperCase()})
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Executable Path */}
+            {gameType === 'executable' && (
+              <>
+                <label>Executable Path</label>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <input
+                    type="text"
+                    placeholder="C:\Games\game.exe"
+                    value={newGameExe}
+                    onChange={(e) => setNewGameExe(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  {isElectron() ? (
+                    <button
+                      className="modal-btn"
+                      onClick={() => openFileElectron(setNewGameExe, [{ name: 'Executables', extensions: ['exe', 'bat', 'lnk'] }])}
+                      style={{ padding: '0 15px', fontSize: 20 }}
+                    >
+                      +
+                    </button>
+                  ) : (
+                    <>
+                      <input ref={exeInputRef} type="file" style={{ display: 'none' }} onChange={handleExeFile} accept=".exe,.bat,.lnk" />
+                      <button
+                        className="modal-btn"
+                        onClick={() => exeInputRef.current?.click()}
+                        style={{ padding: '0 15px', fontSize: 20 }}
+                      >
+                        +
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
 
             <label>Cover Art</label>
             <div style={{ display: 'flex', gap: 5 }}>
-              <input type="text" placeholder="Path to Cover Art" value={previewIcon || ''} readOnly style={{ flex: 1 }} />
+              <input
+                type="text"
+                placeholder="Paste image URL or select a file"
+                value={previewIcon || ''}
+                onChange={(e) => setPreviewIcon(e.target.value || null)}
+                style={{ flex: 1 }}
+              />
               {isElectron() ? (
                 <button className="modal-btn" onClick={() => openFileElectron(setPreviewIcon, [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }])} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
               ) : (
@@ -624,7 +780,13 @@ export default function GamesPage({ onOpenApp, isActive }) {
 
             <label>Banner Image (for tile)</label>
             <div style={{ display: 'flex', gap: 5 }}>
-              <input type="text" placeholder="Path to Banner" value={previewBanner || ''} readOnly style={{ flex: 1 }} />
+              <input
+                type="text"
+                placeholder="Paste image URL or select a file"
+                value={previewBanner || ''}
+                onChange={(e) => setPreviewBanner(e.target.value || null)}
+                style={{ flex: 1 }}
+              />
               {isElectron() ? (
                 <button className="modal-btn" onClick={() => openFileElectron(setPreviewBanner, [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }])} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
               ) : (

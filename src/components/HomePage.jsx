@@ -1,9 +1,30 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron } from '../utils/electron'
+
+const SYSTEM_CORE_MAP = {
+  nes: 'fceumm', sfc: 'snes9x', smc: 'snes9x', gba: 'mgba', gb: 'mgba', gbc: 'mgba',
+  gen: 'genesis_plus_gx', md: 'genesis_plus_gx', sms: 'genesis_plus_gx', gg: 'genesis_plus_gx',
+  pce: 'mednafen_pce', ngp: 'meowatch', ngpc: 'meowatch',
+  ws: 'mednafen_wswan', wsc: 'mednafen_wswan', lnx: 'handy', jag: 'virtualjaguar',
+  vb: 'mednafen_vb', col: 'col'
+}
+
+const SYSTEM_NAMES = {
+  nes: 'NES', sfc: 'SNES', smc: 'SNES', gba: 'GBA', gb: 'Game Boy',
+  gbc: 'Game Boy Color', gen: 'Genesis', md: 'Genesis', sms: 'Master System',
+  gg: 'Game Gear', pce: 'PC Engine', ngp: 'Neo Geo Pocket', ngpc: 'Neo Geo Pocket Color',
+  ws: 'WonderSwan', wsc: 'WonderSwan Color', lnx: 'Lynx', jag: 'Jaguar',
+  vb: 'Virtual Boy', col: 'ColecoVision'
+}
+
+function detectSystem(filename) {
+  const ext = filename.split('.').pop().toLowerCase()
+  return { ext, system: SYSTEM_CORE_MAP[ext] || 'fceumm', systemName: SYSTEM_NAMES[ext] || ext.toUpperCase() }
+}
 
 const subdomains = [
   { id: 'ludaba', label: 'Ludaba', url: 'https://ludaba.panashe.co.za', icon: './assets/icons/controller.png' },
@@ -32,6 +53,7 @@ export default function HomePage({ onOpenApp, isActive }) {
   const [editingTileId, setEditingTileId] = useState(null)
   const [editImgPath, setEditImgPath] = useState('')
   const [editAppPath, setEditAppPath] = useState('')
+  const romInputRef = useRef(null)
 
   const handleContextMenu = (e, tileId) => {
     e.preventDefault()
@@ -56,8 +78,10 @@ export default function HomePage({ onOpenApp, isActive }) {
   const handleOpenApp = (tileId) => {
     if (tileId === 'c1-r1') {
       const recent = [...allGames].sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
-      if (recent.length > 0 && recent[0].lastPlayed) {
-         launchGameFromHome(recent[0])
+      if (recent.length > 0 && recent[0].lastPlayed && recent[0].exe && isElectron()) {
+        launchGameFromHome(recent[0])
+      } else {
+        romInputRef.current?.click()
       }
       return
     }
@@ -109,6 +133,26 @@ export default function HomePage({ onOpenApp, isActive }) {
         const updatedGames = allGames.map(g => g.name === game.name ? { ...g, lastPlayed: Date.now() } : g)
         updateConfig('myGames', updatedGames)
       } catch(e) {}
+    }
+  }
+
+  const handleRomFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    e.target.value = ''
+
+    const { ext, systemName } = detectSystem(file.name)
+    const name = file.name.replace(/\.[^.]+$/, '')
+
+    if (onOpenApp) {
+      onOpenApp({
+        type: 'emulator',
+        rom: file,
+        fileName: file.name,
+        core: SYSTEM_CORE_MAP[ext] || 'fceumm',
+        label: name,
+        systemName
+      })
     }
   }
 
@@ -314,6 +358,13 @@ export default function HomePage({ onOpenApp, isActive }) {
           isActive={isActive}
         />
       )}
+      <input
+        ref={romInputRef}
+        type="file"
+        accept=".nes,.sfc,.smc,.gba,.gb,.gbc,.gen,.md,.sms,.gg,.pce,.ngp,.ngpc,.ws,.wsc,.lnx,.jag,.vb,.col,.sg"
+        style={{ display: 'none' }}
+        onChange={handleRomFileSelect}
+      />
     </>
   )
 }
