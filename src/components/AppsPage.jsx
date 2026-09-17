@@ -11,7 +11,7 @@ const defaultApps = [
   { name: 'X', url: 'https://x.com', img: './assets/imgs/x.png' },
 ]
 
-export default function AppsPage() {
+export default function AppsPage({ isActive }) {
   const { config, updateConfig } = useConfig()
   const apps = config.myApps
 
@@ -28,6 +28,13 @@ export default function AppsPage() {
   const [newAppName, setNewAppName] = useState('')
   const [newAppUrl, setNewAppUrl] = useState('')
   const [previewIcon, setPreviewIcon] = useState(null)
+
+  useEffect(() => {
+    if (!isActive) {
+      setShowModal(false)
+      setEditingAppName(null)
+    }
+  }, [isActive])
 
   const handleOpenApp = (url) => {
     if (url.toLowerCase().startsWith('http://') || url.toLowerCase().startsWith('https://')) {

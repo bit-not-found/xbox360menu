@@ -213,6 +213,15 @@ export default function CollectionPage({
     }
   }, [isActive])
 
+  // Close when guide opens
+  useEffect(() => {
+    const handleGuideOpened = () => {
+      if (!isClosing) handleClose()
+    }
+    window.addEventListener('guide-opened', handleGuideOpened)
+    return () => window.removeEventListener('guide-opened', handleGuideOpened)
+  }, [isClosing])
+
   const handleClose = () => {
     playBack()
     setIsClosing(true)
@@ -222,6 +231,7 @@ export default function CollectionPage({
   const handleItemAction = (item) => {
     playSelect()
     if (onItemAction) onItemAction(item)
+    handleClose()
   }
 
   const handlePin = (item, e) => {

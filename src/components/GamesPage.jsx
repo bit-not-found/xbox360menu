@@ -94,6 +94,32 @@ export default function GamesPage({ onOpenApp, isActive }) {
     window.dispatchEvent(new Event('games-updated'))
   }, [games])
 
+  useEffect(() => {
+    if (!isActive) {
+      setShowAddModal(false)
+      setShowMyGames(false)
+      setShowMyRoms(false)
+      setShowIgdbSetup(false)
+      setIsSearchingOnline(false)
+      setOnlineSearchResults([])
+      setEditingGameName(null)
+    }
+  }, [isActive])
+
+  useEffect(() => {
+    const closeAll = () => {
+      setShowAddModal(false)
+      setShowMyGames(false)
+      setShowMyRoms(false)
+      setShowIgdbSetup(false)
+      setIsSearchingOnline(false)
+      setOnlineSearchResults([])
+      setEditingGameName(null)
+    }
+    window.addEventListener('guide-opened', closeAll)
+    return () => window.removeEventListener('guide-opened', closeAll)
+  }, [])
+
   // Scan ROM folder on mount (Electron only, browser requires re-selection)
   useEffect(() => {
     if (romFolder && isElectron()) {

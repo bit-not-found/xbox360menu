@@ -19,6 +19,14 @@ export default function VideoPage({ isActive }) {
   const folderInputRef = useRef(null)
 
   useEffect(() => {
+    if (!isActive) {
+      setShowPlayer(false)
+      setCurrentVideo(null)
+      setShowList(false)
+    }
+  }, [isActive])
+
+  useEffect(() => {
     if (mediaDir && isElectron()) {
       try {
         const fs = getNodeFs()

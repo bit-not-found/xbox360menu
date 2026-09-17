@@ -4,7 +4,7 @@ import Tile from './Tile'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
 
-export default function MusicPage() {
+export default function MusicPage({ isActive }) {
   const { config, updateConfig } = useConfig()
   const pinnedTracks = config.pinnedTracks
   const customMusicCovers = config.customMusicCovers
@@ -216,6 +216,13 @@ export default function MusicPage() {
 
   const [editingMusicPath, setEditingMusicPath] = useState(null)
   const [editMusicCover, setEditMusicCover] = useState('')
+
+  useEffect(() => {
+    if (!isActive) {
+      setShowList(false)
+      setEditingMusicPath(null)
+    }
+  }, [isActive])
 
   const handleMusicContextMenu = (e, path) => {
     e.preventDefault()

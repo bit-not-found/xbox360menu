@@ -94,7 +94,11 @@ function App() {
   }, [])
 
   const toggleGuide = useCallback(() => {
-    setShowGuide(prev => !prev)
+    setShowGuide(prev => {
+      const next = !prev
+      if (next) window.dispatchEvent(new Event('guide-opened'))
+      return next
+    })
   }, [])
 
   const closeGuide = useCallback(() => {
@@ -170,9 +174,9 @@ function App() {
               ) : cat === 'games' ? (
                 <GamesPage onOpenApp={openApp} isActive={index === activeCategory} />
               ) : cat === 'music' ? (
-                <MusicPage />
+                <MusicPage isActive={index === activeCategory} />
               ) : cat === 'apps' ? (
-                <AppsPage />
+                <AppsPage isActive={index === activeCategory} />
               ) : cat === 'settings' ? (
                 <div className="settings-grid">
                   {settingsTiles.map((tile) => (
