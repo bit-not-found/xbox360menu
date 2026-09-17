@@ -4,6 +4,7 @@ import Tile from './Tile'
 import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, getNodeChildProcess } from '../utils/electron'
+import { saveRomFile, loadRomFile } from '../utils/romCache'
 
 const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -123,13 +124,19 @@ export default function GamesPage({ onOpenApp, isActive }) {
           return fileList
         }
 
-        const roms = getFilesRecursively(romFolder)
-        setRoms(roms)
+        const scannedRoms = getFilesRecursively(romFolder)
+        const existing = config.myRoms || []
+        const existingPaths = new Set(existing.map(r => r.path))
+        const existingNames = new Set(existing.map(r => `${r.name}.${r.ext}`))
+        const newRoms = scannedRoms.filter(r => !existingPaths.has(r.path) && !existingNames.has(`${r.name}.${r.ext}`))
+        if (newRoms.length > 0) {
+          updateConfig('myRoms', [...existing, ...newRoms])
+        }
       } catch (e) {
         console.log('ROM scan failed:', e.message)
       }
     }
-  }, [romFolder, setRoms])
+  }, [romFolder])
 
   const openRomFolder = async () => {
     if (isElectron()) {
@@ -173,8 +180,18 @@ export default function GamesPage({ onOpenApp, isActive }) {
 
     let romData = null
     const fileName = `${rom.name}.${rom.ext}`
+    const cacheKey = fileName
 
-    if (rom.path) {
+    try {
+      const cachedFile = await loadRomFile(cacheKey)
+      if (cachedFile) {
+        romData = cachedFile instanceof Blob ? cachedFile : new Blob([cachedFile])
+      }
+    } catch (e) {
+      console.warn('Failed to load ROM from cache:', e)
+    }
+
+    if (!romData && rom.path) {
       try {
         const fs = getNodeFs()
         if (fs && fs.promises && fs.promises.readFile) {
@@ -185,12 +202,12 @@ export default function GamesPage({ onOpenApp, isActive }) {
           romData = new Blob([data])
         }
       } catch (e) {
-        console.error('Failed to read ROM file:', e)
+        console.error('Failed to read ROM file from disk:', e)
       }
     }
 
     if (!romData) {
-      alert('ROM file not available. Please re-select your ROM folder.')
+      alert('ROM file not available. Please re-add this ROM using the Add Game button.')
       return
     }
 
@@ -294,6 +311,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
     const bannerUrl = previewBanner || previewIcon || './assets/imgs/260x195-PLACEHOLDER.png'
 
     if (gameType === 'rom' && romFile) {
+      const cacheKey = `${newGameName}.${romFile.ext}`
       const romEntry = {
         name: newGameName,
         path: romFile.path,
@@ -305,9 +323,15 @@ export default function GamesPage({ onOpenApp, isActive }) {
         banner: previewBanner || null,
       }
       if (editingGameName) {
+        const oldCacheKey = `${editingGameName}.${romFile.ext}`
         setRoms(prev => prev.map(r => r.name === editingGameName ? { ...r, ...romEntry } : r))
+        if (romFile.file) {
+          saveRomFile(cacheKey, romFile.file)
+          if (oldCacheKey !== cacheKey) saveRomFile(oldCacheKey, romFile.file)
+        }
       } else {
         setRoms(prev => [...prev, romEntry])
+        if (romFile.file) saveRomFile(cacheKey, romFile.file)
       }
     } else {
       if (editingGameName) {

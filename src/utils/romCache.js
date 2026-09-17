@@ -26,6 +26,21 @@ export async function saveRomFile(name, file) {
   }
 }
 
+export async function loadRomFile(name) {
+  try {
+    const db = await openDB()
+    const tx = db.transaction(STORE_NAME, 'readonly')
+    const request = tx.objectStore(STORE_NAME).get(name)
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result ? request.result.file : null)
+      request.onerror = () => reject(request.error)
+    })
+  } catch (e) {
+    console.warn('Failed to load ROM from cache:', e)
+    return null
+  }
+}
+
 export async function loadAllRomFiles() {
   try {
     const db = await openDB()
