@@ -463,8 +463,8 @@ export default function GamesPage({ onOpenApp, isActive }) {
     ...myRoms.map(r => ({
       id: r.name,
       name: r.name,
-      icon: null,
-      banner: null,
+      icon: r.icon || null,
+      banner: r.banner || null,
       systemName: r.systemName,
       core: r.core,
       exe: null,
@@ -498,20 +498,27 @@ export default function GamesPage({ onOpenApp, isActive }) {
 
   const renderRomTile = (rom) => {
     if (!rom) return <Tile />
+    const bannerImg = rom.banner || rom.icon
     return (
       <Tile
         key={rom.name}
         className="game-tile-banner rom-tile"
         onClick={() => launchRom(rom)}
       >
-        <div className="rom-tile-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <circle cx="8" cy="12" r="2" />
-            <rect x="13" y="10" width="5" height="4" rx="1" />
-          </svg>
-        </div>
-        <div className="rom-tile-system">{rom.systemName}</div>
+        {bannerImg ? (
+          <img src={bannerImg} alt={rom.name} className="game-tile-img" />
+        ) : (
+          <>
+            <div className="rom-tile-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#107c10" strokeWidth="1.5">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <circle cx="8" cy="12" r="2" />
+                <rect x="13" y="10" width="5" height="4" rx="1" />
+              </svg>
+            </div>
+            <div className="rom-tile-system">{rom.systemName}</div>
+          </>
+        )}
         <div className="game-tile-name">{rom.name}</div>
       </Tile>
     )
