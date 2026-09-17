@@ -13,6 +13,7 @@ import GuideMenu from './components/GuideMenu'
 import Taskbar from './components/Taskbar'
 import './App.css'
 import { ConfigProvider } from './context/ConfigContext'
+import { MusicProvider } from './context/MusicContext'
 
 const categories = ['home', 'social', 'media', 'games', 'music', 'apps', 'settings']
 const settingsTiles = [
@@ -236,7 +237,9 @@ function App() {
 export default function AppWrapper() {
   return (
     <ConfigProvider>
-      <App />
+      <MusicProvider>
+        <App />
+      </MusicProvider>
     </ConfigProvider>
   )
 }
