@@ -353,7 +353,6 @@ export default function CollectionPage({
                           setConfirmDelete(item.id)
                         }
                       }}
-                      onMouseLeave={() => setConfirmDelete(null)}
                       title={confirmDelete === item.id ? 'Click again to confirm' : 'Remove'}
                     >
                       {confirmDelete === item.id ? (

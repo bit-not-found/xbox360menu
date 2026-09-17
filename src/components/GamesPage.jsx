@@ -261,7 +261,11 @@ export default function GamesPage({ onOpenApp, isActive }) {
 
   const handleDeleteGame = () => {
     if (editingGameName) {
-      setGames(prev => prev.filter(g => g.name !== editingGameName))
+      if (gameType === 'rom') {
+        setRoms(prev => prev.filter(r => r.name !== editingGameName))
+      } else {
+        setGames(prev => prev.filter(g => g.name !== editingGameName))
+      }
       setShowAddModal(false)
       setEditingGameName(null)
     }
@@ -303,7 +307,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
       if (editingGameName) {
         setRoms(prev => prev.map(r => r.name === editingGameName ? { ...r, ...romEntry } : r))
       } else {
-        setRoms([...myRoms, romEntry])
+        setRoms(prev => [...prev, romEntry])
       }
     } else {
       if (editingGameName) {
@@ -313,7 +317,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
           banner: previewBanner || g.banner
         } : g))
       } else {
-        setGames([...games, {
+        setGames(prev => [...prev, {
           name: newGameName, exe: newGameExe, icon: iconUrl, banner: bannerUrl,
           stars: 5, isPinned: false, lastPlayed: 0
         }])
@@ -339,15 +343,21 @@ export default function GamesPage({ onOpenApp, isActive }) {
         const exec = getNodeChildProcess()
         const path = getNodePath()
         if (exec && path) {
-          exec(`start "" "${game.exe}"`, { cwd: path.dirname(game.exe) }, (err) => {
+          const exeDir = path.dirname(game.exe)
+          exec(`start "" "${game.exe}"`, { cwd: exeDir }, (err) => {
             if (err) console.error('Failed to launch:', err)
           })
+        } else {
+          alert('Could not access system launch tools. Please restart the app.')
         }
       } catch (e) {
         console.log('Cannot launch:', game.exe, e)
+        alert('Failed to launch game: ' + e.message)
       }
     } else if (game.exe) {
       alert('Game launching is only available in the desktop app.')
+    } else {
+      alert('No executable path set for this game. Right-click to edit and set the path.')
     }
   }
 
@@ -457,6 +467,11 @@ export default function GamesPage({ onOpenApp, isActive }) {
 
   const allRoms = myRoms
 
+  const allDisplayGames = [
+    ...games.map(g => ({ ...g, _type: 'game' })),
+    ...myRoms.map(r => ({ ...r, _type: 'rom', romData: r }))
+  ]
+
   const renderRomTile = (rom) => {
     if (!rom) return <Tile />
     return (
@@ -474,6 +489,23 @@ export default function GamesPage({ onOpenApp, isActive }) {
         </div>
         <div className="rom-tile-system">{rom.systemName}</div>
         <div className="game-tile-name">{rom.name}</div>
+      </Tile>
+    )
+  }
+
+  const renderDisplayTile = (item) => {
+    if (!item) return <Tile />
+    if (item._type === 'rom') {
+      return renderRomTile(item)
+    }
+    return (
+      <Tile
+        className="game-tile-banner"
+        onClick={() => launchGame(item)}
+        onContextMenu={(e) => openEditModal(item, e)}
+      >
+        <img src={item.banner} alt={item.name} className="game-tile-img" />
+        <div className="game-tile-name">{item.name}</div>
       </Tile>
     )
   }
@@ -497,78 +529,21 @@ export default function GamesPage({ onOpenApp, isActive }) {
         </div>
 
         <div className="games-center">
-          {allRoms.length > 0 ? (
-            renderRomTile(allRoms[0])
-          ) : games.length > 0 ? (
-            <Tile
-              className="game-tile-banner"
-              onClick={() => launchGame(games[0])}
-              onContextMenu={(e) => openEditModal(games[0], e)}
-            >
-              <img src={games[0].banner} alt={games[0].name} className="game-tile-img" />
-              <div className="game-tile-name">{games[0].name}</div>
-            </Tile>
-          ) : (
-            <Tile label="No Games" />
-          )}
+          {allDisplayGames.length > 0 ? renderDisplayTile(allDisplayGames[0]) : <Tile label="No Games" />}
         </div>
 
         <div className="games-c3-r1">
-          {allRoms.length > 1 ? (
-            renderRomTile(allRoms[1])
-          ) : games.length > 1 ? (
-            <Tile
-              className="game-tile-banner"
-              onClick={() => launchGame(games[1])}
-              onContextMenu={(e) => openEditModal(games[1], e)}
-            >
-              <img src={games[1].banner} alt={games[1].name} className="game-tile-img" />
-              <div className="game-tile-name">{games[1].name}</div>
-            </Tile>
-          ) : <Tile />}
+          {allDisplayGames.length > 1 ? renderDisplayTile(allDisplayGames[1]) : <Tile />}
         </div>
         <div className="games-c3-r2">
-          {allRoms.length > 2 ? (
-            renderRomTile(allRoms[2])
-          ) : games.length > 2 ? (
-            <Tile
-              className="game-tile-banner"
-              onClick={() => launchGame(games[2])}
-              onContextMenu={(e) => openEditModal(games[2], e)}
-            >
-              <img src={games[2].banner} alt={games[2].name} className="game-tile-img" />
-              <div className="game-tile-name">{games[2].name}</div>
-            </Tile>
-          ) : <Tile />}
+          {allDisplayGames.length > 2 ? renderDisplayTile(allDisplayGames[2]) : <Tile />}
         </div>
 
         <div className="games-c4-r1">
-          {allRoms.length > 3 ? (
-            renderRomTile(allRoms[3])
-          ) : games.length > 3 ? (
-            <Tile
-              className="game-tile-banner"
-              onClick={() => launchGame(games[3])}
-              onContextMenu={(e) => openEditModal(games[3], e)}
-            >
-              <img src={games[3].banner} alt={games[3].name} className="game-tile-img" />
-              <div className="game-tile-name">{games[3].name}</div>
-            </Tile>
-          ) : <Tile />}
+          {allDisplayGames.length > 3 ? renderDisplayTile(allDisplayGames[3]) : <Tile />}
         </div>
         <div className="games-c4-r2">
-          {allRoms.length > 4 ? (
-            renderRomTile(allRoms[4])
-          ) : games.length > 4 ? (
-            <Tile
-              className="game-tile-banner"
-              onClick={() => launchGame(games[4])}
-              onContextMenu={(e) => openEditModal(games[4], e)}
-            >
-              <img src={games[4].banner} alt={games[4].name} className="game-tile-img" />
-              <div className="game-tile-name">{games[4].name}</div>
-            </Tile>
-          ) : <Tile />}
+          {allDisplayGames.length > 4 ? renderDisplayTile(allDisplayGames[4]) : <Tile />}
         </div>
       </div>
 
@@ -597,8 +572,11 @@ export default function GamesPage({ onOpenApp, isActive }) {
           systems={myGameSystems}
           onAddItem={openAddGameFromMyGames}
           onDeleteItem={(item) => {
-            if (item.isRom) return
-            setGames(prev => prev.filter(g => g.name !== item.name))
+            if (item.isRom) {
+              setRoms(prev => prev.filter(r => r.name !== item.name))
+            } else {
+              setGames(prev => prev.filter(g => g.name !== item.name))
+            }
           }}
           renderItem={(item) => {
             if (item.isRom) {
