@@ -378,6 +378,8 @@
   border: 1px solid #333;
   padding: 30px;
   width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
