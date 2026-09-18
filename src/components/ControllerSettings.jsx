@@ -1,0 +1,445 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useGamepad } from '../hooks/useGamepad'
+import { useConfig } from '../context/ConfigContext'
+
+const hoverAudio = new Audio('./assets/audio/hover.mp3')
+const backAudio = new Audio('./assets/audio/Back.mp3')
+const selectAudio = new Audio('./assets/audio/Select.mp3')
+
+const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(() => {}) }
+const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
+const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
+
+const GUIDE_BUTTONS = [
+  { id: 'a', label: 'A', color: '#107c10' },
+  { id: 'b', label: 'B', color: '#e81123' },
+  { id: 'x', label: 'X', color: '#0078d7' },
+  { id: 'y', label: 'Y', color: '#ffb900' },
+  { id: 'lb', label: 'LB' },
+  { id: 'rb', label: 'RB' },
+  { id: 'lt', label: 'LT' },
+  { id: 'rt', label: 'RT' },
+  { id: 'start', label: 'Start' },
+  { id: 'back', label: 'Back' },
+  { id: 'dpad-up', label: 'D-Up', isDpad: true },
+  { id: 'dpad-down', label: 'D-Down', isDpad: true },
+  { id: 'dpad-left', label: 'D-Left', isDpad: true },
+  { id: 'dpad-right', label: 'D-Right', isDpad: true },
+  { id: 'ls', label: 'LS Click' },
+  { id: 'rs', label: 'RS Click' },
+]
+
+const PRESETS = {
+  standard: {
+    label: 'Standard Xbox Layout',
+    bindings: {},
+  },
+  nintendo: {
+    label: 'Nintendo Swap',
+    bindings: { a: 'b', b: 'a', x: 'y', y: 'x' },
+  },
+  arcade: {
+    label: 'Arcade Stick',
+    bindings: { a: 'rt', b: 'rb', x: 'lt', y: 'lb', lb: 'a', rb: 'b', lt: 'x', rt: 'y' },
+  },
+  wasd: {
+    label: 'WASD Keyboard',
+    bindings: {},
+  },
+}
+
+const XBOX_BUTTON_MAP = [
+  'a', 'b', 'x', 'y', 'lb', 'rb', 'lt', 'rt',
+  'back', 'start', 'ls', 'rs', 'dpad-up', 'dpad-down',
+  'dpad-left', 'dpad-right',
+]
+
+function getKeyLabel(binding) {
+  if (!binding) return 'Unbound'
+  if (binding.startsWith('Key')) return binding.slice(3)
+  if (binding.startsWith('Digit')) return binding.slice(5)
+  if (binding === 'Space') return 'Space'
+  if (binding === 'ArrowUp') return '↑'
+  if (binding === 'ArrowDown') return '↓'
+  if (binding === 'ArrowLeft') return '←'
+  if (binding === 'ArrowRight') return '→'
+  if (binding === 'ShiftLeft') return 'LShift'
+  if (binding === 'ShiftRight') return 'RShift'
+  if (binding === 'ControlLeft') return 'LCtrl'
+  if (binding === 'ControlRight') return 'RCtrl'
+  return binding
+}
+
+export default function ControllerSettings({ onClose, isActive }) {
+  const { config, updateConfig } = useConfig()
+  const { gamepads } = useGamepad()
+  const [isClosing, setIsClosing] = useState(false)
+  const [remapPlayer, setRemapPlayer] = useState(null)
+  const [remapButton, setRemapButton] = useState(null)
+  const [waitingForInput, setWaitingForInput] = useState(false)
+  const [deadzoneValues, setDeadzoneValues] = useState(() => {
+    return config?.controllerSettings?.deadzones || {
+      0: { left: 0.15, right: 0.15 },
+      1: { left: 0.15, right: 0.15 },
+      2: { left: 0.15, right: 0.15 },
+      3: { left: 0.15, right: 0.15 },
+    }
+  })
+
+  const settings = config?.controllerSettings || {
+    playerAssignments: [{ type: 'keyboard', index: 0 }, null, null, null],
+    bindings: { 0: {}, 1: {}, 2: {}, 3: {} },
+    deadzones: { 0: { left: 0.15, right: 0.15 }, 1: { left: 0.15, right: 0.15 }, 2: { left: 0.15, right: 0.15 }, 3: { left: 0.15, right: 0.15 } },
+    preset: { 0: 'standard', 1: 'standard', 2: 'standard', 3: 'standard' },
+  }
+
+  useEffect(() => {
+    if (!isActive) {
+      handleClose()
+    }
+  }, [isActive])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') handleClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const handleClose = useCallback(() => {
+    playBack()
+    setIsClosing(true)
+    setTimeout(() => onClose(), 300)
+  }, [onClose])
+
+  const updateSetting = useCallback((key, value) => {
+    const newSettings = { ...settings, [key]: value }
+    updateConfig('controllerSettings', newSettings)
+  }, [settings, updateConfig])
+
+  const updateAssignment = useCallback((playerIndex, assignment) => {
+    const newAssignments = [...settings.playerAssignments]
+    newAssignments[playerIndex] = assignment
+    updateSetting('playerAssignments', newAssignments)
+  }, [settings, updateSetting])
+
+  const updateBinding = useCallback((playerIndex, buttonId, physicalInput) => {
+    const newBindings = { ...settings.bindings }
+    newBindings[playerIndex] = { ...newBindings[playerIndex], [buttonId]: physicalInput }
+    updateSetting('bindings', newBindings)
+  }, [settings, updateSetting])
+
+  const resetBindings = useCallback((playerIndex) => {
+    const newBindings = { ...settings.bindings }
+    newBindings[playerIndex] = {}
+    updateSetting('bindings', newBindings)
+  }, [settings, updateSetting])
+
+  const updateDeadzone = useCallback((playerIndex, stick, value) => {
+    const newDeadzones = { ...settings.deadzones }
+    newDeadzones[playerIndex] = { ...newDeadzones[playerIndex], [stick]: value }
+    setDeadzoneValues(newDeadzones)
+    updateSetting('deadzones', newDeadzones)
+  }, [settings, updateSetting])
+
+  const applyPreset = useCallback((playerIndex, presetId) => {
+    const newBindings = { ...settings.bindings }
+    newBindings[playerIndex] = { ...PRESETS[presetId].bindings }
+    const newPreset = { ...settings.preset, [playerIndex]: presetId }
+    updateSetting('bindings', newBindings)
+    updateSetting('preset', newPreset)
+  }, [settings, updateSetting])
+
+  const testRumble = useCallback((gamepadIndex) => {
+    const gp = navigator.getGamepads?.()[gamepadIndex]
+    if (gp?.vibrationActuator) {
+      gp.vibrationActuator.playEffect('dual-rumble', {
+        startDelay: 0,
+        duration: 500,
+        weakMagnitude: 0.5,
+        strongMagnitude: 0.8,
+      }).catch(() => {})
+    }
+  }, [])
+
+  const startRemap = useCallback((playerIndex, buttonId) => {
+    setRemapPlayer(playerIndex)
+    setRemapButton(buttonId)
+    setWaitingForInput(true)
+  }, [])
+
+  useEffect(() => {
+    if (!waitingForInput || remapPlayer === null || !remapButton) return
+
+    const onGamepadButton = (e) => {
+      const btn = XBOX_BUTTON_MAP[e.button]
+      if (btn) {
+        updateBinding(remapPlayer, remapButton, `gamepad:${btn}`)
+        setWaitingForInput(false)
+        setRemapPlayer(null)
+        setRemapButton(null)
+        playSelect()
+      }
+    }
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setWaitingForInput(false)
+        setRemapPlayer(null)
+        setRemapButton(null)
+        return
+      }
+      updateBinding(remapPlayer, remapButton, e.code)
+      setWaitingForInput(false)
+      setRemapPlayer(null)
+      setRemapButton(null)
+      playSelect()
+    }
+
+    window.addEventListener('gamepadbuttondown', onGamepadButton)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('gamepadbuttondown', onGamepadButton)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [waitingForInput, remapPlayer, remapButton, updateBinding])
+
+  const getControllerName = (gp) => {
+    if (!gp) return 'Unknown Controller'
+    const name = gp.id.split('(')[0].trim()
+    return name.length > 30 ? name.slice(0, 27) + '...' : name
+  }
+
+  const renderGuideCircle = (playerIndex) => {
+    const assignment = settings.playerAssignments[playerIndex]
+    const isConnected = assignment?.type === 'gamepad' && gamepads.some(g => g.index === assignment.index)
+
+    return (
+      <div className={`controller-guide-circle ${isConnected ? 'connected' : ''}`}>
+        <div className={`controller-led led-top ${isConnected ? 'on' : ''}`} />
+        <div className={`controller-led led-right ${isConnected ? 'on' : ''}`} />
+        <div className={`controller-led led-bottom ${isConnected ? 'on' : ''}`} />
+        <div className={`controller-led led-left ${isConnected ? 'on' : ''}`} />
+        <div className="controller-guide-icon">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+            <circle cx="12" cy="12" r="4"/>
+          </svg>
+        </div>
+      </div>
+    )
+  }
+
+  return createPortal(
+    <div className={`controller-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+      <div className="controller-container" onClick={e => e.stopPropagation()}>
+        <div className="controller-topbar">
+          <h2 className="controller-title">Controller Settings</h2>
+          <button className="controller-close" onClick={handleClose}>✕</button>
+        </div>
+
+        <div className="controller-body">
+          <div className="controller-section">
+            <h3 className="controller-section-title">Connected Controllers</h3>
+            <div className="controller-slots">
+              {[0, 1, 2, 3].map(i => {
+                const assignment = settings.playerAssignments[i]
+                const gp = assignment?.type === 'gamepad' ? gamepads.find(g => g.index === assignment.index) : null
+
+                return (
+                  <div key={i} className={`controller-slot ${assignment ? 'active' : ''}`}>
+                    {renderGuideCircle(i)}
+                    <div className="controller-slot-info">
+                      <div className="controller-slot-label">Player {i + 1}</div>
+                      {assignment?.type === 'gamepad' && gp ? (
+                        <div className="controller-slot-detail">
+                          <span className="controller-slot-status connected">Connected</span>
+                          <span className="controller-slot-name">{getControllerName(gp)}</span>
+                        </div>
+                      ) : assignment?.type === 'keyboard' ? (
+                        <div className="controller-slot-detail">
+                          <span className="controller-slot-status connected">Keyboard</span>
+                          <span className="controller-slot-name">Default Input</span>
+                        </div>
+                      ) : (
+                        <div className="controller-slot-detail">
+                          <span className="controller-slot-status">No Controller</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="controller-section">
+            <h3 className="controller-section-title">Input Assignment</h3>
+            <div className="controller-assignment-matrix">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="controller-assignment-row">
+                  <span className="controller-assignment-label">Player {i + 1}</span>
+                  <div className="controller-assignment-options">
+                    <button
+                      className={`controller-assignment-btn ${settings.playerAssignments[i]?.type === 'keyboard' ? 'active' : ''}`}
+                      onClick={() => { playSelect(); updateAssignment(i, { type: 'keyboard', index: 0 }) }}
+                    >
+                      Keyboard
+                    </button>
+                    {gamepads.map(gp => (
+                      <button
+                        key={gp.index}
+                        className={`controller-assignment-btn ${settings.playerAssignments[i]?.type === 'gamepad' && settings.playerAssignments[i]?.index === gp.index ? 'active' : ''}`}
+                        onClick={() => { playSelect(); updateAssignment(i, { type: 'gamepad', index: gp.index }) }}
+                      >
+                        Gamepad {gp.index + 1}
+                      </button>
+                    ))}
+                    {settings.playerAssignments[i] && (
+                      <button
+                        className="controller-assignment-btn unassign"
+                        onClick={() => { playSelect(); updateAssignment(i, null) }}
+                      >
+                        None
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="controller-section">
+            <h3 className="controller-section-title">Button Remapping</h3>
+            <div className="controller-remap-grid">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="controller-remap-player">
+                  <div className="controller-remap-player-header">
+                    <span>Player {i + 1}</span>
+                    <button className="controller-remap-reset" onClick={() => { playSelect(); resetBindings(i) }}>
+                      Reset
+                    </button>
+                  </div>
+                  <div className="controller-remap-buttons">
+                    {GUIDE_BUTTONS.map(btn => (
+                      <button
+                        key={btn.id}
+                        className={`controller-remap-btn ${settings.bindings[i]?.[btn.id] ? 'mapped' : ''} ${remapPlayer === i && remapButton === btn.id ? 'waiting' : ''}`}
+                        style={btn.color ? { borderColor: btn.color } : undefined}
+                        onClick={() => { playSelect(); startRemap(i, btn.id) }}
+                      >
+                        <span className="controller-remap-btn-label">{btn.label}</span>
+                        <span className="controller-remap-btn-value">
+                          {settings.bindings[i]?.[btn.id]
+                            ? getKeyLabel(settings.bindings[i][btn.id].replace('gamepad:', ''))
+                            : '—'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="controller-section">
+            <h3 className="controller-section-title">Deadzone & Vibration</h3>
+            <div className="controller-calibration-grid">
+              {[0, 1, 2, 3].map(i => {
+                const assignment = settings.playerAssignments[i]
+                const gp = assignment?.type === 'gamepad' ? gamepads.find(g => g.index === assignment.index) : null
+
+                return (
+                  <div key={i} className="controller-calibration-player">
+                    <div className="controller-calibration-header">Player {i + 1}</div>
+                    <div className="controller-deadzone-group">
+                      <label className="controller-deadzone-label">
+                        Left Stick: {((settings.deadzones[i]?.left || 0.15) * 100).toFixed(0)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.05"
+                        max="0.30"
+                        step="0.01"
+                        value={settings.deadzones[i]?.left || 0.15}
+                        onChange={(e) => { updateDeadzone(i, 'left', parseFloat(e.target.value)) }}
+                        className="controller-slider"
+                      />
+                    </div>
+                    <div className="controller-deadzone-group">
+                      <label className="controller-deadzone-label">
+                        Right Stick: {((settings.deadzones[i]?.right || 0.15) * 100).toFixed(0)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0.05"
+                        max="0.30"
+                        step="0.01"
+                        value={settings.deadzones[i]?.right || 0.15}
+                        onChange={(e) => { updateDeadzone(i, 'right', parseFloat(e.target.value)) }}
+                        className="controller-slider"
+                      />
+                    </div>
+                    <button
+                      className="controller-rumble-btn"
+                      disabled={!gp}
+                      onClick={() => { playSelect(); testRumble(gp?.index) }}
+                    >
+                      {gp ? 'Test Rumble' : 'No Gamepad'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="controller-section">
+            <h3 className="controller-section-title">Preset Profiles</h3>
+            <div className="controller-presets-grid">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="controller-preset-player">
+                  <div className="controller-preset-header">Player {i + 1}</div>
+                  <div className="controller-preset-options">
+                    {Object.entries(PRESETS).map(([id, preset]) => (
+                      <button
+                        key={id}
+                        className={`controller-preset-btn ${settings.preset?.[i] === id ? 'active' : ''}`}
+                        onClick={() => { playSelect(); applyPreset(i, id) }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {waitingForInput && (
+          <div className="controller-remap-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="controller-remap-modal-content">
+              <div className="controller-remap-modal-icon">⬤</div>
+              <div className="controller-remap-modal-title">Press a Button</div>
+              <div className="controller-remap-modal-subtitle">
+                Press a button on your controller or keyboard
+              </div>
+              <div className="controller-remap-modal-hint">
+                Mapping: Player {remapPlayer + 1} → {GUIDE_BUTTONS.find(b => b.id === remapButton)?.label}
+              </div>
+              <button
+                className="controller-remap-modal-cancel"
+                onClick={() => { playBack(); setWaitingForInput(false); setRemapPlayer(null); setRemapButton(null) }}
+              >
+                Cancel (Esc)
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  )
+}

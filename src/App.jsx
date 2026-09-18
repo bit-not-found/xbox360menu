@@ -11,21 +11,12 @@ import AppsPage from './components/AppsPage'
 import AppWindow from './components/AppWindow'
 import GuideMenu from './components/GuideMenu'
 import Taskbar from './components/Taskbar'
+import ControllerSettings from './components/ControllerSettings'
 import './App.css'
 import { ConfigProvider } from './context/ConfigContext'
 import { MusicProvider } from './context/MusicContext'
 
 const categories = ['home', 'social', 'media', 'games', 'music', 'apps', 'settings']
-const settingsTiles = [
-  { label: 'System', icon: <img src="./assets/icons/system.png" alt="System" /> },
-  { label: 'Preferences', icon: <img src="./assets/icons/Preferences.png" alt="Preferences" /> },
-  { label: 'Profile', icon: <img src="./assets/icons/profile_settings.png" alt="Profile" /> },
-  { label: 'Kinect', icon: <img src="./assets/icons/kinect_device.png" alt="Kinect" />, disabled: true },
-  { label: 'Account', icon: <img src="./assets/icons/account.png" alt="Account" /> },
-  { label: 'Privacy', icon: <img src="./assets/icons/Privacy.png" alt="Privacy" /> },
-  { label: 'Family', icon: <img src="./assets/icons/Family.png" alt="Family" /> },
-  { label: 'Turn Off', icon: <img src="./assets/icons/TurnOff.png" alt="Turn Off" />, onClick: () => { const ipc = getIpcRenderer(); if (ipc) ipc.send('app:quit') } },
-]
 
 const pageLeftAudio = new Audio('./assets/audio/Page Left.mp3')
 const pageRightAudio = new Audio('./assets/audio/Page Right.mp3')
@@ -39,6 +30,18 @@ function App() {
   const [openApps, setOpenApps] = useState([])
   const [focusedAppId, setFocusedAppId] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
+  const [showControllerSettings, setShowControllerSettings] = useState(false)
+
+  const settingsTiles = [
+    { label: 'System', icon: <img src="./assets/icons/system.png" alt="System" /> },
+    { label: 'Preferences', icon: <img src="./assets/icons/Preferences.png" alt="Preferences" /> },
+    { label: 'Profile', icon: <img src="./assets/icons/profile_settings.png" alt="Profile" /> },
+    { label: 'Controller', icon: <img src="./assets/icons/controller.png" alt="Controller" />, onClick: () => setShowControllerSettings(true) },
+    { label: 'Account', icon: <img src="./assets/icons/account.png" alt="Account" /> },
+    { label: 'Privacy', icon: <img src="./assets/icons/Privacy.png" alt="Privacy" /> },
+    { label: 'Family', icon: <img src="./assets/icons/Family.png" alt="Family" /> },
+    { label: 'Turn Off', icon: <img src="./assets/icons/TurnOff.png" alt="Turn Off" />, onClick: () => { const ipc = getIpcRenderer(); if (ipc) ipc.send('app:quit') } },
+  ]
 
   const finishIntro = () => {
     setShowIntro(false)
@@ -228,6 +231,13 @@ function App() {
           onFocusApp={focusApp}
           onCloseApp={closeApp}
           onCloseAllApps={closeAllApps}
+        />
+      )}
+
+      {showControllerSettings && (
+        <ControllerSettings
+          onClose={() => setShowControllerSettings(false)}
+          isActive={showControllerSettings}
         />
       )}
     </div>

@@ -20,6 +20,29 @@ function loadFromLocalStorage() {
     ? savedVideoFolders
     : legacyVideoFolder ? [legacyVideoFolder] : []
 
+  const defaultControllerSettings = {
+    playerAssignments: [
+      { type: 'keyboard', index: 0 },
+      null,
+      null,
+      null,
+    ],
+    bindings: { 0: {}, 1: {}, 2: {}, 3: {} },
+    deadzones: {
+      0: { left: 0.15, right: 0.15 },
+      1: { left: 0.15, right: 0.15 },
+      2: { left: 0.15, right: 0.15 },
+      3: { left: 0.15, right: 0.15 },
+    },
+    preset: { 0: 'standard', 1: 'standard', 2: 'standard', 3: 'standard' },
+  }
+
+  let controllerSettings = defaultControllerSettings
+  try {
+    const saved = localStorage.getItem('controllerSettings')
+    if (saved) controllerSettings = { ...defaultControllerSettings, ...JSON.parse(saved) }
+  } catch {}
+
   return {
     myGames: JSON.parse(localStorage.getItem('myGames') || '[]'),
     myApps: JSON.parse(localStorage.getItem('myApps') || 'null') || defaultApps,
@@ -30,7 +53,8 @@ function loadFromLocalStorage() {
     videoFolders,
     homeTiles: JSON.parse(localStorage.getItem('homeTiles') || '{}'),
     romFolder: localStorage.getItem('romFolder') || '',
-    myRoms: JSON.parse(localStorage.getItem('myRoms') || '[]')
+    myRoms: JSON.parse(localStorage.getItem('myRoms') || '[]'),
+    controllerSettings,
   }
 }
 
@@ -45,6 +69,7 @@ function saveToLocalStorage(data) {
   localStorage.setItem('homeTiles', JSON.stringify(data.homeTiles))
   localStorage.setItem('romFolder', data.romFolder)
   localStorage.setItem('myRoms', JSON.stringify(data.myRoms))
+  localStorage.setItem('controllerSettings', JSON.stringify(data.controllerSettings || {}))
 }
 
 export function ConfigProvider({ children }) {

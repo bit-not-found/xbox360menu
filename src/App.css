@@ -2300,3 +2300,552 @@ body > canvas#canvas {
   color: #ffb400;
 }
 
+/* ===== CONTROLLER SETTINGS ===== */
+
+.controller-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(160deg, #c8c8c8 0%, #a0a0a0 30%, #808080 60%, #606060 100%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  animation: overlayEnter 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.controller-overlay.closing {
+  animation: overlayExit 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.controller-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 0 50px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.controller-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 0 16px;
+  flex-shrink: 0;
+}
+
+.controller-title {
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: #333;
+  margin: 0;
+}
+
+.controller-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #555;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  font-family: inherit;
+}
+
+.controller-close:hover {
+  opacity: 1;
+}
+
+.controller-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.controller-section {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.controller-section-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Player Slots */
+.controller-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.controller-slot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.controller-slot.active {
+  border-color: rgba(16, 124, 16, 0.3);
+  background: rgba(16, 124, 16, 0.05);
+}
+
+.controller-guide-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #2a2a2a;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+
+.controller-guide-circle.connected {
+  background: #1a1a1a;
+  box-shadow: 0 0 12px rgba(16, 124, 16, 0.4);
+}
+
+.controller-guide-icon {
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controller-guide-circle.connected .controller-guide-icon {
+  color: #107c10;
+}
+
+.controller-led {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #444;
+  transition: all 0.3s;
+}
+
+.controller-led.on {
+  background: #107c10;
+  box-shadow: 0 0 6px #107c10;
+}
+
+.led-top { top: -2px; left: 50%; transform: translateX(-50%); }
+.led-right { right: -2px; top: 50%; transform: translateY(-50%); }
+.led-bottom { bottom: -2px; left: 50%; transform: translateX(-50%); }
+.led-left { left: -2px; top: 50%; transform: translateY(-50%); }
+
+.controller-slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.controller-slot-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.controller-slot-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.controller-slot-status {
+  font-size: 0.7rem;
+  color: #999;
+}
+
+.controller-slot-status.connected {
+  color: #107c10;
+}
+
+.controller-slot-name {
+  font-size: 0.65rem;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Input Assignment Matrix */
+.controller-assignment-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controller-assignment-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.controller-assignment-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #555;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.controller-assignment-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.controller-assignment-btn {
+  padding: 5px 14px;
+  background: transparent;
+  border: 1px solid #888;
+  border-radius: 20px;
+  color: #555;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.controller-assignment-btn:hover {
+  border-color: #555;
+  color: #333;
+}
+
+.controller-assignment-btn.active {
+  background: #333;
+  border-color: #333;
+  color: #fff;
+}
+
+.controller-assignment-btn.unassign {
+  border-color: #c33;
+  color: #c33;
+}
+
+.controller-assignment-btn.unassign:hover {
+  background: #c33;
+  color: #fff;
+}
+
+/* Button Remapping */
+.controller-remap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.controller-remap-player {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.controller-remap-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.controller-remap-reset {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  color: #777;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.controller-remap-reset:hover {
+  border-color: #999;
+  color: #333;
+}
+
+.controller-remap-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.controller-remap-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.controller-remap-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #aaa;
+}
+
+.controller-remap-btn.mapped {
+  background: rgba(16, 124, 16, 0.1);
+  border-color: rgba(16, 124, 16, 0.3);
+}
+
+.controller-remap-btn.waiting {
+  background: rgba(255, 180, 0, 0.2);
+  border-color: #ffb400;
+  animation: remapPulse 1s infinite;
+}
+
+@keyframes remapPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 180, 0, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 180, 0, 0); }
+}
+
+.controller-remap-btn-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.controller-remap-btn-value {
+  font-size: 0.6rem;
+  color: #107c10;
+  font-weight: 500;
+}
+
+/* Deadzone & Vibration */
+.controller-calibration-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.controller-calibration-player {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controller-calibration-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.controller-deadzone-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.controller-deadzone-label {
+  font-size: 0.7rem;
+  color: #555;
+}
+
+.controller-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #ddd;
+  outline: none;
+  cursor: pointer;
+}
+
+.controller-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #107c10;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.controller-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #107c10;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.controller-rumble-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid #107c10;
+  border-radius: 4px;
+  color: #107c10;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.controller-rumble-btn:hover:not(:disabled) {
+  background: #107c10;
+  color: #fff;
+}
+
+.controller-rumble-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Preset Profiles */
+.controller-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.controller-preset-player {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.controller-preset-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 8px;
+}
+
+.controller-preset-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.controller-preset-btn {
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #555;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  font-family: inherit;
+}
+
+.controller-preset-btn:hover {
+  border-color: #888;
+  color: #333;
+}
+
+.controller-preset-btn.active {
+  background: #333;
+  border-color: #333;
+  color: #fff;
+}
+
+/* Remap Modal */
+.controller-remap-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+  animation: overlayEnter 0.2s ease forwards;
+}
+
+.controller-remap-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 40px 50px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.controller-remap-modal-icon {
+  font-size: 3rem;
+  color: #ffb400;
+  margin-bottom: 16px;
+  animation: remapPulse 1.5s infinite;
+}
+
+.controller-remap-modal-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.controller-remap-modal-subtitle {
+  font-size: 0.85rem;
+  color: #777;
+  margin-bottom: 12px;
+}
+
+.controller-remap-modal-hint {
+  font-size: 0.75rem;
+  color: #107c10;
+  margin-bottom: 20px;
+}
+
+.controller-remap-modal-cancel {
+  padding: 8px 20px;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: #777;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.controller-remap-modal-cancel:hover {
+  border-color: #999;
+  color: #333;
+}
+
