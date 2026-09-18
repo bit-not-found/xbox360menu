@@ -9,13 +9,7 @@ const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(()
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 
-const MEDIA_CHIPS = [
-  { id: 'all', label: 'All' },
-  { id: 'clips', label: 'Clips' },
-  { id: 'screenshots', label: 'Screenshots' },
-  { id: 'favorites', label: 'Favorites' },
-  { id: 'local', label: 'Local' },
-]
+const MEDIA_CHIPS = []
 
 const GAME_CHIPS = [
   { id: 'all', label: 'All' },
