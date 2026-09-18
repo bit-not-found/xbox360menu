@@ -270,7 +270,6 @@ export default function CollectionPage({
   const handleItemAction = (item) => {
     playSelect()
     if (onItemAction) onItemAction(item)
-    handleClose()
   }
 
   const handlePin = (item, e) => {
