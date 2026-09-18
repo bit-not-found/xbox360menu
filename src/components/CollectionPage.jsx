@@ -76,6 +76,7 @@ export default function CollectionPage({
   isActive = true,
   mode = 'media',
   onAddItem,
+  onAddItem2,
   onDeleteItem,
   systems = [],
 }) {
@@ -324,6 +325,14 @@ export default function CollectionPage({
                   onClick={() => { playSelect(); onAddItem() }}
                 >
                   + Add Folder
+                </button>
+              )}
+              {mode === 'media' && onAddItem2 && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddItem2() }}
+                >
+                  + Add Photos
                 </button>
               )}
             </div>

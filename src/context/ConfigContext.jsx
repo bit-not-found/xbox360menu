@@ -14,6 +14,12 @@ const defaultApps = [
 ]
 
 function loadFromLocalStorage() {
+  const savedVideoFolders = JSON.parse(localStorage.getItem('videoFolders') || '[]')
+  const legacyVideoFolder = localStorage.getItem('videoFolder') || ''
+  const videoFolders = savedVideoFolders.length > 0
+    ? savedVideoFolders
+    : legacyVideoFolder ? [legacyVideoFolder] : []
+
   return {
     myGames: JSON.parse(localStorage.getItem('myGames') || '[]'),
     myApps: JSON.parse(localStorage.getItem('myApps') || 'null') || defaultApps,
@@ -21,6 +27,7 @@ function loadFromLocalStorage() {
     customMusicCovers: JSON.parse(localStorage.getItem('customMusicCovers') || '{}'),
     musicFolder: localStorage.getItem('musicFolder') || '',
     videoFolder: localStorage.getItem('videoFolder') || '',
+    videoFolders,
     homeTiles: JSON.parse(localStorage.getItem('homeTiles') || '{}'),
     romFolder: localStorage.getItem('romFolder') || '',
     myRoms: JSON.parse(localStorage.getItem('myRoms') || '[]')
@@ -34,6 +41,7 @@ function saveToLocalStorage(data) {
   localStorage.setItem('customMusicCovers', JSON.stringify(data.customMusicCovers))
   localStorage.setItem('musicFolder', data.musicFolder)
   localStorage.setItem('videoFolder', data.videoFolder)
+  localStorage.setItem('videoFolders', JSON.stringify(data.videoFolders || []))
   localStorage.setItem('homeTiles', JSON.stringify(data.homeTiles))
   localStorage.setItem('romFolder', data.romFolder)
   localStorage.setItem('myRoms', JSON.stringify(data.myRoms))

@@ -1,14 +1,27 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath } from '../utils/electron'
 
+const MEDIA_EXT = /\.(mp4|mkv|webm|avi|mov|jpg|jpeg|png|gif|bmp|webp)$/i
+const VIDEO_EXT = /\.(mp4|mkv|webm|avi|mov)$/i
+
+function buildMediaObject(name, file, path, extra = {}) {
+  return {
+    name: name.replace(/\.[^.]+$/, ''),
+    file,
+    path,
+    isVideo: VIDEO_EXT.test(file),
+    isImage: /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file),
+    ...extra,
+  }
+}
+
 export default function VideoPage({ isActive }) {
   const { config, updateConfig } = useConfig()
-  const mediaDir = config.videoFolder
-  const setMediaDir = (val) => updateConfig('videoFolder', val)
+  const videoFolders = config.videoFolders || []
 
   const [videos, setVideos] = useState([])
   const [showPlayer, setShowPlayer] = useState(false)
@@ -17,6 +30,7 @@ export default function VideoPage({ isActive }) {
   const [activeTileIndex, setActiveTileIndex] = useState(null)
   const [tileOverrides, setTileOverrides] = useState({})
   const folderInputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!isActive) {
@@ -26,49 +40,61 @@ export default function VideoPage({ isActive }) {
     }
   }, [isActive])
 
-  useEffect(() => {
-    if (mediaDir && isElectron()) {
-      try {
-        const fs = getNodeFs()
-        const path = getNodePath()
-        if (!fs || !path) return
-        
-        const getFilesRecursively = (dir, fileList = []) => {
-          if (!fs.existsSync(dir)) return fileList
-          const files = fs.readdirSync(dir)
-          for (const file of files) {
-            const filePath = path.join(dir, file)
-            if (fs.statSync(filePath).isDirectory()) {
-              getFilesRecursively(filePath, fileList)
-            } else {
-              if (/\.(mp4|mkv|webm|avi|mov|jpg|jpeg|png|gif|bmp|webp)$/i.test(file)) {
-                let formattedPath = filePath.replace(/\\/g, '/')
-                if (formattedPath.match(/^[a-zA-Z]:/)) formattedPath = `file:///${formattedPath}`
-                
-                fileList.push({
-                  name: file.replace(/\.[^.]+$/, ''),
-                  file: file,
-                  path: formattedPath,
-                  isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(file),
-                  isImage: /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(file),
-                  mtime: fs.statSync(filePath).mtimeMs,
-                  size: fs.statSync(filePath).size,
-                  source: 'local',
-                })
-              }
-            }
+  const scanFolder = useCallback((folderPath) => {
+    if (!isElectron()) return []
+    try {
+      const fs = getNodeFs()
+      const path = getNodePath()
+      if (!fs || !path) return []
+
+      const getFilesRecursively = (dir, fileList = []) => {
+        if (!fs.existsSync(dir)) return fileList
+        const files = fs.readdirSync(dir)
+        for (const file of files) {
+          const filePath = path.join(dir, file)
+          if (fs.statSync(filePath).isDirectory()) {
+            getFilesRecursively(filePath, fileList)
+          } else if (MEDIA_EXT.test(file)) {
+            let formattedPath = filePath.replace(/\\/g, '/')
+            if (formattedPath.match(/^[a-zA-Z]:/)) formattedPath = `file:///${formattedPath}`
+            fileList.push(buildMediaObject(file, file, formattedPath, {
+              mtime: fs.statSync(filePath).mtimeMs,
+              size: fs.statSync(filePath).size,
+              source: 'local',
+            }))
           }
-          return fileList
         }
-        
-        const mediaFiles = getFilesRecursively(mediaDir)
-        setVideos(mediaFiles)
-        setTileOverrides({})
-      } catch (e) {
-        console.log('Media scan failed:', e.message)
+        return fileList
+      }
+
+      return getFilesRecursively(folderPath)
+    } catch (e) {
+      console.log('Media scan failed for', folderPath, e.message)
+      return []
+    }
+  }, [])
+
+  useEffect(() => {
+    if (videoFolders.length === 0 || !isElectron()) return
+    const allFiles = []
+    const seen = new Set()
+    for (const folder of videoFolders) {
+      const files = scanFolder(folder)
+      for (const f of files) {
+        if (!seen.has(f.path)) {
+          seen.add(f.path)
+          allFiles.push(f)
+        }
       }
     }
-  }, [mediaDir])
+    if (allFiles.length > 0) {
+      setVideos(prev => {
+        const prevPaths = new Set(prev.map(v => v.path))
+        const newItems = allFiles.filter(f => !prevPaths.has(f.path))
+        return newItems.length > 0 ? [...prev, ...newItems] : prev
+      })
+    }
+  }, [videoFolders, scanFolder])
 
   const openVideo = (video, tileIndex = null) => {
     setCurrentVideo(video)
@@ -81,11 +107,11 @@ export default function VideoPage({ isActive }) {
     if (!currentVideo || videos.length === 0) return
     const currentIndex = videos.findIndex(v => v.path === currentVideo.path)
     if (currentIndex === -1) return
-    
+
     let nextIndex = currentIndex + direction
     if (nextIndex >= videos.length) nextIndex = 0
     if (nextIndex < 0) nextIndex = videos.length - 1
-    
+
     setCurrentVideo(videos[nextIndex])
   }
 
@@ -105,7 +131,18 @@ export default function VideoPage({ isActive }) {
         const result = await ipcRenderer.invoke('dialog:openDirectory')
         if (result && !result.canceled && result.filePaths.length > 0) {
           const selectedPath = result.filePaths[0]
-          setMediaDir(selectedPath)
+          const normalized = selectedPath.replace(/\\/g, '/')
+          if (videoFolders.some(f => f.replace(/\\/g, '/') === normalized)) {
+            return
+          }
+          updateConfig('videoFolders', [...videoFolders, selectedPath])
+          const newFiles = scanFolder(selectedPath)
+          setVideos(prev => {
+            const seen = new Set(prev.map(v => v.path))
+            const toAdd = newFiles.filter(f => !seen.has(f.path))
+            return toAdd.length > 0 ? [...prev, ...toAdd] : prev
+          })
+          setTileOverrides({})
         }
       } catch(e) {
         console.log('Cannot open folder dialog', e)
@@ -117,24 +154,60 @@ export default function VideoPage({ isActive }) {
 
   const handleFolderInput = (e) => {
     const files = Array.from(e.target.files)
-    const mediaFiles = files
-      .filter(f => /\.(mp4|mkv|webm|avi|mov|jpg|jpeg|png|gif|bmp|webp)$/i.test(f.name))
+    const newFiles = files
+      .filter(f => MEDIA_EXT.test(f.name))
       .map(f => {
         const url = URL.createObjectURL(f)
-        return {
-          name: f.name.replace(/\.[^.]+$/, ''),
-          file: f.name,
-          path: url,
-          isVideo: /\.(mp4|mkv|webm|avi|mov)$/i.test(f.name),
-          isImage: /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(f.name),
+        return buildMediaObject(f.name, f.name, url, {
           mtime: f.lastModified,
           size: f.size,
           source: 'local',
-        }
+        })
       })
-    setVideos(mediaFiles)
+
+    setVideos(prev => {
+      const seen = new Set(prev.map(v => v.path))
+      const toAdd = newFiles.filter(f => !seen.has(f.path))
+      return toAdd.length > 0 ? [...prev, ...toAdd] : prev
+    })
     setTileOverrides({})
-    setMediaDir(e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Media')
+
+    const folderName = e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Media'
+    const existing = videoFolders || []
+    if (!existing.includes(folderName)) {
+      updateConfig('videoFolders', [...existing, folderName])
+    }
+    e.target.value = ''
+  }
+
+  const openSingleFilePicker = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleSingleFileInput = (e) => {
+    const files = Array.from(e.target.files)
+    const newFiles = files
+      .filter(f => MEDIA_EXT.test(f.name))
+      .map(f => {
+        const url = URL.createObjectURL(f)
+        return buildMediaObject(f.name, f.name, url, {
+          mtime: f.lastModified,
+          size: f.size,
+          source: 'local',
+        })
+      })
+
+    setVideos(prev => {
+      const seen = new Set(prev.map(v => v.path))
+      const toAdd = newFiles.filter(f => !seen.has(f.path))
+      return toAdd.length > 0 ? [...prev, ...toAdd] : prev
+    })
+    setTileOverrides({})
+    e.target.value = ''
+  }
+
+  const deleteMediaItem = (item) => {
+    setVideos(prev => prev.filter(v => v.path !== item.path))
   }
 
   return (
@@ -212,6 +285,7 @@ export default function VideoPage({ isActive }) {
       </div>
 
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleFolderInput} />
+      <input ref={fileInputRef} type="file" multiple accept="image/*,video/*" style={{ display: 'none' }} onChange={handleSingleFileInput} />
 
       {/* MY MEDIA COLLECTION */}
       {showList && (
@@ -222,11 +296,10 @@ export default function VideoPage({ isActive }) {
           onClose={() => setShowList(false)}
           onItemAction={(v) => { openVideo(v) }}
           onAddItem={openFolders}
-          onDeleteItem={(v) => {
-            setVideos(prev => prev.filter(item => item.path !== v.path))
-          }}
+          onAddItem2={openSingleFilePicker}
+          onDeleteItem={deleteMediaItem}
           filters={[{ label: 'all media' }]}
-          emptyMessage="No media found. Click + Add Folder to load photos."
+          emptyMessage="No media found. Click + Add Folder or + Add Photos to begin."
           isActive={isActive}
           renderItem={(v) => (
             v.isVideo ? (
@@ -244,7 +317,7 @@ export default function VideoPage({ isActive }) {
           <div className="video-player-container" onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
             <button className="video-player-close" onClick={closePlayer}>✕</button>
             <button className="media-nav-btn media-nav-prev" onClick={(e) => navigateMedia(-1, e)}>‹</button>
-            
+
             {currentVideo.isVideo ? (
               <video
                 src={currentVideo.path}
@@ -255,7 +328,7 @@ export default function VideoPage({ isActive }) {
             ) : (
               <img src={currentVideo.path} className="video-player" style={{ objectFit: 'contain' }} />
             )}
-            
+
             <button className="media-nav-btn media-nav-next" onClick={(e) => navigateMedia(1, e)}>›</button>
             <div className="video-player-title">{currentVideo.name}</div>
           </div>
