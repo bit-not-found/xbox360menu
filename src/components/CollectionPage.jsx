@@ -328,6 +328,15 @@ export default function CollectionPage({
                   + Add Photos
                 </button>
               )}
+              {mode === 'media' && counts.favorites > 0 && (
+                <button
+                  className={`collection-chip ${categoryFilter === 'favorites' ? 'active' : ''}`}
+                  onClick={() => { playSelect(); setCategoryFilter(categoryFilter === 'favorites' ? 'all' : 'favorites') }}
+                >
+                  Favorites
+                  <span className="collection-chip-count">{counts.favorites}</span>
+                </button>
+              )}
             </div>
           </div>
           <div className="collection-title-area">
