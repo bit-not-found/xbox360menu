@@ -142,8 +142,8 @@ export default function VideoPage({ isActive }) {
       <div className="video-grid">
         <div className="video-left-1">
           <Tile
-            label="My Media"
-            icon={<img src="./assets/icons/video.png" alt="My Media" />}
+            label="My Photos"
+            icon={<img src="./assets/icons/video.png" alt="My Photos" />}
             onClick={() => setShowList(true)}
           />
         </div>
@@ -216,12 +216,17 @@ export default function VideoPage({ isActive }) {
       {/* MY MEDIA COLLECTION */}
       {showList && (
         <CollectionPage
-          title="My Media"
+          title="My Photos"
+          mode="media"
           items={videos.map(v => ({ ...v, id: v.path, icon: v.path }))}
           onClose={() => setShowList(false)}
           onItemAction={(v) => { openVideo(v) }}
+          onAddItem={openFolders}
+          onDeleteItem={(v) => {
+            setVideos(prev => prev.filter(item => item.path !== v.path))
+          }}
           filters={[{ label: 'all media' }]}
-          emptyMessage="No media found. Select a folder containing videos or photos."
+          emptyMessage="No media found. Click + Add Folder to load photos."
           isActive={isActive}
           renderItem={(v) => (
             v.isVideo ? (

@@ -318,6 +318,14 @@ export default function CollectionPage({
                   + Add Music Folder
                 </button>
               )}
+              {mode === 'media' && onAddItem && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddItem() }}
+                >
+                  + Add Folder
+                </button>
+              )}
             </div>
           </div>
           <div className="collection-title-area">
