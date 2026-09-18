@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Nostalgist } from 'nostalgist'
+import { useConfig } from '../context/ConfigContext'
 
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -8,6 +9,7 @@ const selectAudio = new Audio('./assets/audio/Select.mp3')
 let activeNostalgist = null
 
 export default function AppWindow({ app, onClose, onMinimize, minimized }) {
+  const { config } = useConfig()
   const [isClosing, setIsClosing] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [showNav, setShowNav] = useState(true)
@@ -87,13 +89,83 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
           ? { fileContent: app.rom, fileName: app.fileName }
           : app.rom
 
+        const controllerSettings = config?.controllerSettings || {}
+        const assignments = controllerSettings.playerAssignments || [{ type: 'keyboard' }, null, null, null]
+        const bindings = controllerSettings.bindings || { 0: {}, 1: {}, 2: {}, 3: {} }
+
+        const retroarchConfig = {
+          rewind_enable: true,
+          savestate_thumbnail_enable: true,
+        }
+
+        const p1 = assignments[0]
+        const p2 = assignments[1]
+
+        if (p1?.type === 'keyboard') {
+          retroarchConfig.input_player1_joypad_index = '0'
+          const b1 = bindings[0] || {}
+          const binds = []
+          if (b1.a) binds.push(`a=${b1.a}`)
+          if (b1.b) binds.push(`b=${b1.b}`)
+          if (b1.x) binds.push(`x=${b1.x}`)
+          if (b1.y) binds.push(`y=${b1.y}`)
+          if (b1.lb) binds.push(`lb=${b1.lb}`)
+          if (b1.rb) binds.push(`rb=${b1.rb}`)
+          if (b1.lt) binds.push(`lt=${b1.lt}`)
+          if (b1.rt) binds.push(`rt=${b1.rt}`)
+          if (b1.start) binds.push(`start=${b1.start}`)
+          if (b1.back) binds.push(`back=${b1.back}`)
+          if (b1['dpad-up']) binds.push(`up=${b1['dpad-up']}`)
+          if (b1['dpad-down']) binds.push(`down=${b1['dpad-down']}`)
+          if (b1['dpad-left']) binds.push(`left=${b1['dpad-left']}`)
+          if (b1['dpad-right']) binds.push(`right=${b1['dpad-right']}`)
+          if (b1.ls) binds.push(`l3=${b1.ls}`)
+          if (b1.rs) binds.push(`r3=${b1.rs}`)
+          if (binds.length > 0) {
+            retroarchConfig.input_player1_keyboard_binds = binds.join('|')
+          }
+        } else if (p1?.type === 'gamepad') {
+          retroarchConfig.input_player1_joypad_index = String(p1.index)
+        } else {
+          retroarchConfig.input_player1_joypad_index = '0'
+        }
+
+        if (p2?.type === 'keyboard') {
+          retroarchConfig.input_player2_joypad_index = '0'
+          retroarchConfig.input_keyboard_joypad_index = '1'
+          const b2 = bindings[1] || {}
+          const binds = []
+          if (b2.a) binds.push(`a=${b2.a}`)
+          if (b2.b) binds.push(`b=${b2.b}`)
+          if (b2.x) binds.push(`x=${b2.x}`)
+          if (b2.y) binds.push(`y=${b2.y}`)
+          if (b2.lb) binds.push(`lb=${b2.lb}`)
+          if (b2.rb) binds.push(`rb=${b2.rb}`)
+          if (b2.lt) binds.push(`lt=${b2.lt}`)
+          if (b2.rt) binds.push(`rt=${b2.rt}`)
+          if (b2.start) binds.push(`start=${b2.start}`)
+          if (b2.back) binds.push(`back=${b2.back}`)
+          if (b2['dpad-up']) binds.push(`up=${b2['dpad-up']}`)
+          if (b2['dpad-down']) binds.push(`down=${b2['dpad-down']}`)
+          if (b2['dpad-left']) binds.push(`left=${b2['dpad-left']}`)
+          if (b2['dpad-right']) binds.push(`right=${b2['dpad-right']}`)
+          if (b2.ls) binds.push(`l3=${b2.ls}`)
+          if (b2.rs) binds.push(`r3=${b2.rs}`)
+          if (binds.length > 0) {
+            retroarchConfig.input_player2_keyboard_binds = binds.join('|')
+          }
+        } else if (p2?.type === 'gamepad') {
+          retroarchConfig.input_player2_joypad_index = String(p2.index)
+        }
+
+        if (p1?.type === 'gamepad' && p2?.type !== 'keyboard') {
+          retroarchConfig.input_keyboard_joypad_index = '0'
+        }
+
         const nostalgist = await Nostalgist.launch({
           core: app.core || 'fceumm',
           rom: romOption,
-          retroarchConfig: {
-            rewind_enable: true,
-            savestate_thumbnail_enable: true
-          }
+          retroarchConfig,
         })
 
         if (destroyed) {
