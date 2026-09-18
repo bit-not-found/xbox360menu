@@ -27,6 +27,7 @@ export default function VideoPage({ isActive }) {
   const [showPlayer, setShowPlayer] = useState(false)
   const [currentVideo, setCurrentVideo] = useState(null)
   const [showList, setShowList] = useState(false)
+  const [showVideoList, setShowVideoList] = useState(false)
   const [activeTileIndex, setActiveTileIndex] = useState(null)
   const [tileOverrides, setTileOverrides] = useState({})
   const folderInputRef = useRef(null)
@@ -37,6 +38,7 @@ export default function VideoPage({ isActive }) {
       setShowPlayer(false)
       setCurrentVideo(null)
       setShowList(false)
+      setShowVideoList(false)
     }
   }, [isActive])
 
@@ -221,7 +223,7 @@ export default function VideoPage({ isActive }) {
           />
         </div>
         <div className="video-left-2">
-          <Tile label="Folders" icon={<img src="./assets/icons/Folder.png" alt="Folders" />} onClick={openFolders} />
+          <Tile label="My Videos" icon={<img src="./assets/icons/Folder.png" alt="My Videos" />} onClick={() => setShowVideoList(true)} />
         </div>
 
         <div className="video-center">
@@ -307,6 +309,25 @@ export default function VideoPage({ isActive }) {
             ) : (
               <img src={v.path} alt={v.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             )
+          )}
+        />
+      )}
+
+      {/* MY VIDEOS COLLECTION */}
+      {showVideoList && (
+        <CollectionPage
+          title="My Videos"
+          mode="media"
+          items={videos.filter(v => v.isVideo).map(v => ({ ...v, id: v.path, icon: v.path }))}
+          onClose={() => setShowVideoList(false)}
+          onItemAction={(v) => { openVideo(v) }}
+          onAddItem={openFolders}
+          onAddItem2={openSingleFilePicker}
+          onDeleteItem={deleteMediaItem}
+          emptyMessage="No videos found. Click + Add Folder or + Add Photos to begin."
+          isActive={isActive}
+          renderItem={(v) => (
+            <video src={v.path} muted preload="metadata" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           )}
         />
       )}
