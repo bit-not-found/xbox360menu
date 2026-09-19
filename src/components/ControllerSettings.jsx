@@ -102,11 +102,14 @@ export default function ControllerSettings({ onClose, isActive }) {
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'Escape') handleClose()
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        handleClose()
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [])
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [handleClose])
 
   const handleClose = useCallback(() => {
     playBack()
@@ -170,39 +173,74 @@ export default function ControllerSettings({ onClose, isActive }) {
     setWaitingForInput(true)
   }, [])
 
+  const remapPlayerRef = useRef(null)
+  const remapButtonRef = useRef(null)
+  const waitingRef = useRef(false)
+
+  useEffect(() => {
+    remapPlayerRef.current = remapPlayer
+    remapButtonRef.current = remapButton
+    waitingRef.current = waitingForInput
+  }, [remapPlayer, remapButton, waitingForInput])
+
   useEffect(() => {
     if (!waitingForInput || remapPlayer === null || !remapButton) return
 
-    const onGamepadButton = (e) => {
-      const btn = XBOX_BUTTON_MAP[e.button]
-      if (btn) {
-        updateBinding(remapPlayer, remapButton, `gamepad:${btn}`)
-        setWaitingForInput(false)
-        setRemapPlayer(null)
-        setRemapButton(null)
-        playSelect()
+    let prevButtons = {}
+    const raw = navigator.getGamepads ? navigator.getGamepads() : []
+    for (let i = 0; i < raw.length; i++) {
+      if (raw[i]) {
+        prevButtons[i] = raw[i].buttons.map(b => b.pressed)
       }
     }
 
+    let rafId = null
+    const pollGamepad = () => {
+      if (!waitingRef.current) return
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : []
+      for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i]
+        if (!gp) continue
+        const prev = prevButtons[i] || []
+        for (let b = 0; b < gp.buttons.length; b++) {
+          if (gp.buttons[b].pressed && !prev[b]) {
+            const btn = XBOX_BUTTON_MAP[b]
+            if (btn) {
+              updateBinding(remapPlayerRef.current, remapButtonRef.current, `gamepad:${btn}`)
+              setWaitingForInput(false)
+              setRemapPlayer(null)
+              setRemapButton(null)
+              playSelect()
+              return
+            }
+          }
+        }
+        prevButtons[i] = gp.buttons.map(b => b.pressed)
+      }
+      rafId = requestAnimationFrame(pollGamepad)
+    }
+    rafId = requestAnimationFrame(pollGamepad)
+
     const onKeyDown = (e) => {
+      e.stopImmediatePropagation()
+      e.preventDefault()
       if (e.key === 'Escape') {
         setWaitingForInput(false)
         setRemapPlayer(null)
         setRemapButton(null)
         return
       }
-      updateBinding(remapPlayer, remapButton, e.code)
+      updateBinding(remapPlayerRef.current, remapButtonRef.current, e.code)
       setWaitingForInput(false)
       setRemapPlayer(null)
       setRemapButton(null)
       playSelect()
     }
 
-    window.addEventListener('gamepadbuttondown', onGamepadButton)
-    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
     return () => {
-      window.removeEventListener('gamepadbuttondown', onGamepadButton)
-      window.removeEventListener('keydown', onKeyDown)
+      if (rafId) cancelAnimationFrame(rafId)
+      window.removeEventListener('keydown', onKeyDown, true)
     }
   }, [waitingForInput, remapPlayer, remapButton, updateBinding])
 
