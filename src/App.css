@@ -2378,9 +2378,16 @@ body > canvas#canvas {
   font-size: 0.85rem;
   font-weight: 600;
   color: #444;
-  margin: 0 0 16px 0;
+  margin: 0 0 8px 0;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.controller-section-desc {
+  font-size: 0.72rem;
+  color: #888;
+  margin: 0 0 14px 0;
+  line-height: 1.4;
 }
 
 /* Player Slots */
@@ -2608,6 +2615,7 @@ body > canvas#canvas {
   cursor: pointer;
   transition: all 0.15s;
   font-family: inherit;
+  position: relative;
 }
 
 .controller-remap-btn:hover {
@@ -2639,8 +2647,43 @@ body > canvas#canvas {
 
 .controller-remap-btn-value {
   font-size: 0.6rem;
-  color: #107c10;
   font-weight: 500;
+}
+
+.controller-remap-btn-value.default {
+  color: #999;
+}
+
+.controller-remap-btn-value.custom {
+  color: #107c10;
+}
+
+.controller-remap-btn-clear {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(200, 50, 50, 0.7);
+  color: #fff;
+  font-size: 8px;
+  line-height: 14px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 0;
+  font-family: inherit;
+}
+
+.controller-remap-btn:hover .controller-remap-btn-clear {
+  opacity: 1;
+}
+
+.controller-remap-btn-clear:hover {
+  background: rgba(200, 50, 50, 1);
 }
 
 /* Deadzone & Vibration */

@@ -30,22 +30,45 @@ const GUIDE_BUTTONS = [
   { id: 'rs', label: 'RS Click' },
 ]
 
+const DEFAULT_BINDINGS = {
+  a: 'gamepad:a', b: 'gamepad:b', x: 'gamepad:x', y: 'gamepad:y',
+  lb: 'gamepad:lb', rb: 'gamepad:rb', lt: 'gamepad:lt', rt: 'gamepad:rt',
+  start: 'gamepad:start', back: 'gamepad:back',
+  ls: 'gamepad:ls', rs: 'gamepad:rs',
+  'dpad-up': 'gamepad:dpad-up', 'dpad-down': 'gamepad:dpad-down',
+  'dpad-left': 'gamepad:dpad-left', 'dpad-right': 'gamepad:dpad-right',
+}
+
 const PRESETS = {
   standard: {
     label: 'Standard Xbox Layout',
-    bindings: {},
+    bindings: { ...DEFAULT_BINDINGS },
   },
   nintendo: {
     label: 'Nintendo Swap',
-    bindings: { a: 'b', b: 'a', x: 'y', y: 'x' },
+    bindings: {
+      ...DEFAULT_BINDINGS,
+      a: 'gamepad:b', b: 'gamepad:a', x: 'gamepad:y', y: 'gamepad:x',
+    },
   },
   arcade: {
     label: 'Arcade Stick',
-    bindings: { a: 'rt', b: 'rb', x: 'lt', y: 'lb', lb: 'a', rb: 'b', lt: 'x', rt: 'y' },
+    bindings: {
+      ...DEFAULT_BINDINGS,
+      a: 'gamepad:rt', b: 'gamepad:rb', x: 'gamepad:lt', y: 'gamepad:lb',
+      lb: 'gamepad:a', rb: 'gamepad:b', lt: 'gamepad:x', rt: 'gamepad:y',
+    },
   },
   wasd: {
     label: 'WASD Keyboard',
-    bindings: {},
+    bindings: {
+      a: 'KeyZ', b: 'KeyX', x: 'KeyA', y: 'KeyS',
+      lb: 'KeyQ', rb: 'KeyE', lt: 'ShiftLeft', rt: 'ControlLeft',
+      start: 'Enter', back: 'Escape',
+      ls: 'KeyC', rs: 'KeyV',
+      'dpad-up': 'ArrowUp', 'dpad-down': 'ArrowDown',
+      'dpad-left': 'ArrowLeft', 'dpad-right': 'ArrowRight',
+    },
   },
 }
 
@@ -55,20 +78,30 @@ const XBOX_BUTTON_MAP = [
   'dpad-left', 'dpad-right',
 ]
 
-function getKeyLabel(binding) {
-  if (!binding) return 'Unbound'
+function getInputLabel(binding) {
+  if (!binding) return 'Default'
+  if (binding.startsWith('gamepad:')) {
+    const btn = binding.replace('gamepad:', '')
+    const found = GUIDE_BUTTONS.find(b => b.id === btn)
+    return found ? found.label : btn.toUpperCase()
+  }
   if (binding.startsWith('Key')) return binding.slice(3)
   if (binding.startsWith('Digit')) return binding.slice(5)
   if (binding === 'Space') return 'Space'
-  if (binding === 'ArrowUp') return '↑'
-  if (binding === 'ArrowDown') return '↓'
-  if (binding === 'ArrowLeft') return '←'
-  if (binding === 'ArrowRight') return '→'
+  if (binding === 'ArrowUp') return 'Up'
+  if (binding === 'ArrowDown') return 'Down'
+  if (binding === 'ArrowLeft') return 'Left'
+  if (binding === 'ArrowRight') return 'Right'
   if (binding === 'ShiftLeft') return 'LShift'
   if (binding === 'ShiftRight') return 'RShift'
   if (binding === 'ControlLeft') return 'LCtrl'
   if (binding === 'ControlRight') return 'RCtrl'
   return binding
+}
+
+function getDefaultInputLabel(virtualBtn) {
+  const def = DEFAULT_BINDINGS[virtualBtn]
+  return getInputLabel(def)
 }
 
 export default function ControllerSettings({ onClose, isActive }) {
@@ -78,14 +111,6 @@ export default function ControllerSettings({ onClose, isActive }) {
   const [remapPlayer, setRemapPlayer] = useState(null)
   const [remapButton, setRemapButton] = useState(null)
   const [waitingForInput, setWaitingForInput] = useState(false)
-  const [deadzoneValues, setDeadzoneValues] = useState(() => {
-    return config?.controllerSettings?.deadzones || {
-      0: { left: 0.15, right: 0.15 },
-      1: { left: 0.15, right: 0.15 },
-      2: { left: 0.15, right: 0.15 },
-      3: { left: 0.15, right: 0.15 },
-    }
-  })
 
   const settings = config?.controllerSettings || {
     playerAssignments: [{ type: 'keyboard', index: 0 }, null, null, null],
@@ -134,6 +159,13 @@ export default function ControllerSettings({ onClose, isActive }) {
     updateSetting('bindings', newBindings)
   }, [settings, updateSetting])
 
+  const clearBinding = useCallback((playerIndex, buttonId) => {
+    const newBindings = { ...settings.bindings }
+    newBindings[playerIndex] = { ...newBindings[playerIndex] }
+    delete newBindings[playerIndex][buttonId]
+    updateSetting('bindings', newBindings)
+  }, [settings, updateSetting])
+
   const resetBindings = useCallback((playerIndex) => {
     const newBindings = { ...settings.bindings }
     newBindings[playerIndex] = {}
@@ -143,7 +175,6 @@ export default function ControllerSettings({ onClose, isActive }) {
   const updateDeadzone = useCallback((playerIndex, stick, value) => {
     const newDeadzones = { ...settings.deadzones }
     newDeadzones[playerIndex] = { ...newDeadzones[playerIndex], [stick]: value }
-    setDeadzoneValues(newDeadzones)
     updateSetting('deadzones', newDeadzones)
   }, [settings, updateSetting])
 
@@ -351,31 +382,46 @@ export default function ControllerSettings({ onClose, isActive }) {
 
           <div className="controller-section">
             <h3 className="controller-section-title">Button Remapping</h3>
+            <p className="controller-section-desc">Click a button below, then press the key or controller button you want it mapped to.</p>
             <div className="controller-remap-grid">
               {[0, 1, 2, 3].map(i => (
                 <div key={i} className="controller-remap-player">
                   <div className="controller-remap-player-header">
                     <span>Player {i + 1}</span>
                     <button className="controller-remap-reset" onClick={() => { playSelect(); resetBindings(i) }}>
-                      Reset
+                      Reset All
                     </button>
                   </div>
                   <div className="controller-remap-buttons">
-                    {GUIDE_BUTTONS.map(btn => (
-                      <button
-                        key={btn.id}
-                        className={`controller-remap-btn ${settings.bindings[i]?.[btn.id] ? 'mapped' : ''} ${remapPlayer === i && remapButton === btn.id ? 'waiting' : ''}`}
-                        style={btn.color ? { borderColor: btn.color } : undefined}
-                        onClick={() => { playSelect(); startRemap(i, btn.id) }}
-                      >
-                        <span className="controller-remap-btn-label">{btn.label}</span>
-                        <span className="controller-remap-btn-value">
-                          {settings.bindings[i]?.[btn.id]
-                            ? getKeyLabel(settings.bindings[i][btn.id].replace('gamepad:', ''))
-                            : '—'}
-                        </span>
-                      </button>
-                    ))}
+                    {GUIDE_BUTTONS.map(btn => {
+                      const currentBinding = settings.bindings[i]?.[btn.id]
+                      const isCustom = !!currentBinding
+                      const label = isCustom ? getInputLabel(currentBinding) : getDefaultInputLabel(btn.id)
+                      const isDefault = !isCustom
+
+                      return (
+                        <button
+                          key={btn.id}
+                          className={`controller-remap-btn ${isCustom ? 'mapped' : ''} ${remapPlayer === i && remapButton === btn.id ? 'waiting' : ''}`}
+                          style={btn.color ? { borderColor: btn.color } : undefined}
+                          onClick={() => { playSelect(); startRemap(i, btn.id) }}
+                        >
+                          <span className="controller-remap-btn-label">{btn.label}</span>
+                          <span className={`controller-remap-btn-value ${isDefault ? 'default' : 'custom'}`}>
+                            {label}
+                          </span>
+                          {isCustom && (
+                            <button
+                              className="controller-remap-btn-clear"
+                              onClick={(e) => { e.stopPropagation(); playSelect(); clearBinding(i, btn.id) }}
+                              title="Reset to default"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -465,7 +511,7 @@ export default function ControllerSettings({ onClose, isActive }) {
                 Press a button on your controller or keyboard
               </div>
               <div className="controller-remap-modal-hint">
-                Mapping: Player {remapPlayer + 1} → {GUIDE_BUTTONS.find(b => b.id === remapButton)?.label}
+                Remapping: Player {remapPlayer + 1} → {GUIDE_BUTTONS.find(b => b.id === remapButton)?.label}
               </div>
               <button
                 className="controller-remap-modal-cancel"

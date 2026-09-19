@@ -15,13 +15,13 @@ const XBOX_BTN_INDEX = {
   'dpad-up': 12, 'dpad-down': 13, 'dpad-left': 14, 'dpad-right': 15,
 }
 
-const XBOX_BTN_CONFIG_KEY = {
-  a: 'BtnA', b: 'BtnB', x: 'BtnX', y: 'BtnY',
-  lb: 'BtnL', rb: 'BtnR', lt: 'BtnL2', rt: 'BtnR2',
-  back: 'BtnSelect', start: 'BtnStart',
-  ls: 'BtnThumbL', rs: 'BtnThumbR',
-  'dpad-up': 'BtnUp', 'dpad-down': 'BtnDown',
-  'dpad-left': 'BtnLeft', 'dpad-right': 'BtnRight',
+const RETROARCH_BTN_KEY = {
+  a: 'a', b: 'b', x: 'x', y: 'y',
+  lb: 'l', rb: 'r', lt: 'l2', rt: 'r2',
+  back: 'select', start: 'start',
+  ls: 'l3', rs: 'r3',
+  'dpad-up': 'up', 'dpad-down': 'down',
+  'dpad-left': 'left', 'dpad-right': 'right',
 }
 
 function jsKeyToRetroarch(code) {
@@ -54,22 +54,26 @@ function buildRetroarchInputConfig(controllerSettings) {
     const playerBindings = bindings[i] || {}
     const playerNum = i + 1
 
-    for (const [xboxBtn, physicalInput] of Object.entries(playerBindings)) {
-      const cfgKey = XBOX_BTN_CONFIG_KEY[xboxBtn]
-      if (!cfgKey) continue
+    for (const [virtualBtn, defaultIdx] of Object.entries(XBOX_BTN_INDEX)) {
+      const retroKey = RETROARCH_BTN_KEY[virtualBtn]
+      if (!retroKey) continue
 
-      if (typeof physicalInput === 'string' && physicalInput.startsWith('gamepad:')) {
-        if (assignment.type === 'gamepad') {
-          const gpBtn = physicalInput.replace('gamepad:', '')
+      const binding = playerBindings[virtualBtn]
+
+      if (assignment.type === 'gamepad') {
+        if (binding && typeof binding === 'string' && binding.startsWith('gamepad:')) {
+          const gpBtn = binding.replace('gamepad:', '')
           const gpIdx = XBOX_BTN_INDEX[gpBtn]
-          if (gpIdx !== undefined) {
-            config[`input_player${playerNum}${cfgKey}`] = String(gpIdx)
-          }
+          config[`input_player${playerNum}_${retroKey}_btn`] = gpIdx !== undefined ? String(gpIdx) : String(defaultIdx)
+        } else {
+          config[`input_player${playerNum}_${retroKey}_btn`] = String(defaultIdx)
         }
-      } else if (typeof physicalInput === 'string') {
-        const keyName = jsKeyToRetroarch(physicalInput)
+      }
+
+      if (binding && typeof binding === 'string' && !binding.startsWith('gamepad:')) {
+        const keyName = jsKeyToRetroarch(binding)
         if (keyName) {
-          config[`input_player${playerNum}_key_${xboxBtn}`] = keyName
+          config[`input_player${playerNum}_key_${virtualBtn}`] = keyName
         }
       }
     }
