@@ -8,6 +8,76 @@ const selectAudio = new Audio('./assets/audio/Select.mp3')
 
 let activeNostalgist = null
 
+const XBOX_BTN_INDEX = {
+  a: 0, b: 1, x: 2, y: 3,
+  lb: 4, rb: 5, lt: 6, rt: 7,
+  back: 8, start: 9, ls: 10, rs: 11,
+  'dpad-up': 12, 'dpad-down': 13, 'dpad-left': 14, 'dpad-right': 15,
+}
+
+const XBOX_BTN_CONFIG_KEY = {
+  a: 'BtnA', b: 'BtnB', x: 'BtnX', y: 'BtnY',
+  lb: 'BtnL', rb: 'BtnR', lt: 'BtnL2', rt: 'BtnR2',
+  back: 'BtnSelect', start: 'BtnStart',
+  ls: 'BtnThumbL', rs: 'BtnThumbR',
+  'dpad-up': 'BtnUp', 'dpad-down': 'BtnDown',
+  'dpad-left': 'BtnLeft', 'dpad-right': 'BtnRight',
+}
+
+function jsKeyToRetroarch(code) {
+  if (code.startsWith('Key')) return code.slice(3).toLowerCase()
+  if (code.startsWith('Digit')) return code.slice(5)
+  const map = {
+    Space: 'space', Enter: 'return', Escape: 'escape',
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    ShiftLeft: 'lshift', ShiftRight: 'rshift',
+    ControlLeft: 'lctrl', ControlRight: 'rctrl',
+    AltLeft: 'lalt', AltRight: 'ralt',
+    Tab: 'tab', Backspace: 'backspace', Delete: 'delete',
+    BracketLeft: '[', BracketRight: ']',
+    Semicolon: ';', Quote: "'", Comma: ',', Period: '.',
+    Slash: '/', Backslash: '\\', Backquote: '`',
+    Minus: '-', Equal: '=',
+  }
+  return map[code] || code.toLowerCase()
+}
+
+function buildRetroarchInputConfig(controllerSettings) {
+  const config = {}
+  const assignments = controllerSettings?.playerAssignments || []
+  const bindings = controllerSettings?.bindings || {}
+
+  for (let i = 0; i < 4; i++) {
+    const assignment = assignments[i]
+    if (!assignment) continue
+
+    const playerBindings = bindings[i] || {}
+    const playerNum = i + 1
+
+    for (const [xboxBtn, physicalInput] of Object.entries(playerBindings)) {
+      const cfgKey = XBOX_BTN_CONFIG_KEY[xboxBtn]
+      if (!cfgKey) continue
+
+      if (typeof physicalInput === 'string' && physicalInput.startsWith('gamepad:')) {
+        if (assignment.type === 'gamepad') {
+          const gpBtn = physicalInput.replace('gamepad:', '')
+          const gpIdx = XBOX_BTN_INDEX[gpBtn]
+          if (gpIdx !== undefined) {
+            config[`input_player${playerNum}${cfgKey}`] = String(gpIdx)
+          }
+        }
+      } else if (typeof physicalInput === 'string') {
+        const keyName = jsKeyToRetroarch(physicalInput)
+        if (keyName) {
+          config[`input_player${playerNum}_key_${xboxBtn}`] = keyName
+        }
+      }
+    }
+  }
+
+  return config
+}
+
 export default function AppWindow({ app, onClose, onMinimize, minimized }) {
   const { config } = useConfig()
   const [isClosing, setIsClosing] = useState(false)
@@ -106,6 +176,9 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
         if (p2?.type === 'gamepad') {
           retroarchConfig.input_player2_joypad_index = String(p2.index)
         }
+
+        const remapConfig = buildRetroarchInputConfig(controllerSettings)
+        Object.assign(retroarchConfig, remapConfig)
 
         const nostalgist = await Nostalgist.launch({
           core: app.core || 'fceumm',
