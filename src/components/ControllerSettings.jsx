@@ -94,11 +94,17 @@ export default function ControllerSettings({ onClose, isActive }) {
     preset: { 0: 'standard', 1: 'standard', 2: 'standard', 3: 'standard' },
   }
 
+  const handleClose = useCallback(() => {
+    playBack()
+    setIsClosing(true)
+    setTimeout(() => onClose(), 300)
+  }, [onClose])
+
   useEffect(() => {
     if (!isActive) {
       handleClose()
     }
-  }, [isActive])
+  }, [isActive, handleClose])
 
   useEffect(() => {
     const handler = (e) => {
@@ -110,12 +116,6 @@ export default function ControllerSettings({ onClose, isActive }) {
     window.addEventListener('keydown', handler, true)
     return () => window.removeEventListener('keydown', handler, true)
   }, [handleClose])
-
-  const handleClose = useCallback(() => {
-    playBack()
-    setIsClosing(true)
-    setTimeout(() => onClose(), 300)
-  }, [onClose])
 
   const updateSetting = useCallback((key, value) => {
     const newSettings = { ...settings, [key]: value }
