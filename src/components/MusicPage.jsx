@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Tile from './Tile'
 import MusicCollectionPage from './MusicCollectionPage'
 import AudioVisualizer from './AudioVisualizer'
+import FullscreenPlayer from './FullscreenPlayer'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
@@ -28,6 +29,7 @@ export default function MusicPage({ isActive }) {
   const [activeView, setActiveView] = useState(null)
   const [showVisualizer, setShowVisualizer] = useState(false)
   const [inlineVizActive, setInlineVizActive] = useState(false)
+  const [showFullscreen, setShowFullscreen] = useState(false)
 
   const folderInputRef = useRef(null)
   const songsInputRef = useRef(null)
@@ -115,6 +117,11 @@ export default function MusicPage({ isActive }) {
 
   const toggleInlineViz = useCallback(() => {
     setInlineVizActive(prev => !prev)
+  }, [])
+
+  const handleFullscreenNavigate = useCallback((viewId) => {
+    setShowFullscreen(false)
+    setActiveView(viewId)
   }, [])
 
   const setPinnedTracks = useCallback((newVal) => {
@@ -287,6 +294,7 @@ export default function MusicPage({ isActive }) {
     if (!isActive) {
       setActiveView(null)
       setShowVisualizer(false)
+      setShowFullscreen(false)
     }
   }, [isActive])
 
@@ -404,7 +412,11 @@ export default function MusicPage({ isActive }) {
               </div>
 
               <div className="music-tile-player-right">
-                <div className="music-now-playing">
+                <div
+                  className="music-now-playing"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { if (currentTrack) setShowFullscreen(true) }}
+                >
                   {trackCover ? (
                     <img src={trackCover} alt="" className="music-now-playing-cover" />
                   ) : (
@@ -497,6 +509,15 @@ export default function MusicPage({ isActive }) {
 
       {showVisualizer && (
         <AudioVisualizer onClose={() => setShowVisualizer(false)} isActive={isActive} />
+      )}
+
+      {showFullscreen && (
+        <FullscreenPlayer
+          onClose={() => setShowFullscreen(false)}
+          isActive={isActive}
+          onNavigate={handleFullscreenNavigate}
+          customMusicCovers={customMusicCovers}
+        />
       )}
     </>
   )
