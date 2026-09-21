@@ -984,7 +984,7 @@
 
 .music-center-actions {
   position: absolute;
-  bottom: 36px;
+  bottom: 56px;
   left: 0;
   right: 0;
   display: flex;
@@ -1014,6 +1014,115 @@
 
 .music-center-action-btn:active {
   transform: scale(0.97);
+}
+
+.music-tile-player {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.5) 70%, transparent 100%);
+  z-index: 3;
+  border-radius: 0 0 4px 4px;
+}
+
+.music-tile-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.music-tile-player-controls .music-btn {
+  padding: 4px 8px;
+  font-size: 1rem;
+}
+
+.music-tile-player-controls .music-seek {
+  min-width: 80px;
+  max-width: 180px;
+}
+
+.music-tile-player-controls .volume-slider {
+  width: 60px;
+}
+
+.music-tile-player-controls .music-time {
+  font-size: 0.65rem;
+}
+
+.music-tile-player-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.music-tile-player-right .music-now-playing {
+  margin-left: 0;
+  gap: 6px;
+}
+
+.music-tile-player-right .music-now-playing-cover {
+  width: 30px;
+  height: 30px;
+}
+
+.music-tile-player-right .music-track-name {
+  font-size: 0.75rem;
+  max-width: 120px;
+}
+
+.music-tile-player-right .music-track-artist {
+  font-size: 0.65rem;
+}
+
+.music-viz-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #ccc;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.music-viz-toggle:hover {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.music-viz-toggle.active {
+  background: rgba(16, 124, 16, 0.7);
+  border-color: rgba(16, 124, 16, 0.9);
+  color: #fff;
+}
+
+.music-inline-viz-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.music-inline-viz-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .music-player-container {
