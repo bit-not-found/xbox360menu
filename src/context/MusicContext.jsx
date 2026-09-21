@@ -81,6 +81,10 @@ export function MusicProvider({ children }) {
     })
   }, [])
 
+  const appendPlaylist = useCallback((newTracks) => {
+    setPlaylistState(prev => [...prev, ...newTracks])
+  }, [])
+
   const play = useCallback((indexOrTrack) => {
     setIsQueueMode(false)
     setQueue([])
@@ -314,7 +318,7 @@ export function MusicProvider({ children }) {
   }, [])
 
   const value = {
-    playlist, setPlaylist,
+    playlist, setPlaylist, appendPlaylist,
     currentTrack, currentTrackIndex, setCurrentTrackIndex,
     isPlaying,
     currentTime, duration,

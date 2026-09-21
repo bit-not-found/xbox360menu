@@ -14,7 +14,7 @@ export default function MusicPage({ isActive }) {
   const musicFolder = config.musicFolder
 
   const {
-    playlist, setPlaylist,
+    playlist, setPlaylist, appendPlaylist,
     currentTrack, currentTrackIndex, setCurrentTrackIndex,
     isPlaying,
     currentTime, duration,
@@ -29,6 +29,7 @@ export default function MusicPage({ isActive }) {
   const [showVisualizer, setShowVisualizer] = useState(false)
 
   const folderInputRef = useRef(null)
+  const songsInputRef = useRef(null)
 
   const setPinnedTracks = useCallback((newVal) => {
     if (typeof newVal === 'function') {
@@ -154,6 +155,48 @@ export default function MusicPage({ isActive }) {
     setMusicFolder(e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Music')
   }
 
+  const handleAddSongs = async (e) => {
+    const files = Array.from(e.target.files)
+      .filter(f => /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(f.name))
+
+    if (files.length === 0) return
+
+    const tracks = await Promise.all(files.map(async (file) => {
+      const url = URL.createObjectURL(file)
+      const name = file.name.replace(/\.[^.]+$/, '')
+      let artist = '', album = '', genre = '', duration = 0, cover = ''
+
+      try {
+        const { parseBlob } = await import('music-metadata')
+        const meta = await parseBlob(file)
+        artist = meta.common.artist || ''
+        album = meta.common.album || ''
+        genre = meta.common.genre?.[0] || ''
+        duration = meta.format.duration || 0
+        if (meta.common.picture?.[0]) {
+          const pic = meta.common.picture[0]
+          cover = URL.createObjectURL(new Blob([pic.data], { type: pic.format }))
+        }
+      } catch {}
+
+      return {
+        id: url,
+        name,
+        path: file.webkitRelativePath || file.name,
+        url,
+        artist,
+        album,
+        genre,
+        duration,
+        cover,
+        isPinned: false,
+      }
+    }))
+
+    appendPlaylist(tracks)
+    e.target.value = ''
+  }
+
   useEffect(() => {
     if (!isActive) {
       setActiveView(null)
@@ -215,7 +258,22 @@ export default function MusicPage({ isActive }) {
               backgroundPosition: 'center',
             } : {}}
             onClick={() => setActiveView('songs')}
-          />
+          >
+            <div className="music-center-actions">
+              <button
+                className="music-center-action-btn"
+                onClick={(e) => { e.stopPropagation(); selectFolder() }}
+              >
+                + Add Folder
+              </button>
+              <button
+                className="music-center-action-btn"
+                onClick={(e) => { e.stopPropagation(); songsInputRef.current?.click() }}
+              >
+                + Add Song
+              </button>
+            </div>
+          </Tile>
         </div>
 
         {/* Bottom middle tiles */}
@@ -312,6 +370,7 @@ export default function MusicPage({ isActive }) {
       </div>
 
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleFolderInput} accept="audio/*" />
+      <input ref={songsInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleAddSongs} accept="audio/*" />
 
       {activeView && (
         <MusicCollectionPage
