@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import MusicCollectionPage from './MusicCollectionPage'
 import AudioVisualizer from './AudioVisualizer'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
-
-let butterchurnLib = null
-let butterchurnPresetsLib = null
 
 export default function MusicPage({ isActive }) {
   const { config, updateConfig } = useConfig()
@@ -24,9 +20,9 @@ export default function MusicPage({ isActive }) {
     volume, isMuted,
     formatTime,
     togglePlay, next, prev, seek,
-    setVolume, toggleMute, playTrackByName,
+    setVolume, toggleMute,
     addToQueue, playNext, playAlbum,
-    getAudioContext, getAnalyser,
+    getAudioContext, getAnalyser, connectAudioSource,
   } = useMusic()
 
   const [activeView, setActiveView] = useState(null)
@@ -36,122 +32,90 @@ export default function MusicPage({ isActive }) {
   const folderInputRef = useRef(null)
   const songsInputRef = useRef(null)
   const inlineCanvasRef = useRef(null)
-  const inlineVizRef = useRef(null)
   const inlineAnimRef = useRef(null)
-  const [inlinePreset, setInlinePreset] = useState('')
-  const [inlinePresetList, setInlinePresetList] = useState([])
 
-  // Load butterchurn for inline visualizer
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const [bc, bcp] = await Promise.all([
-          import('butterchurn'),
-          import('butterchurn-presets'),
-        ])
-        if (cancelled) return
-        butterchurnLib = bc.default || bc
-        butterchurnPresetsLib = bcp.default || bcp
-        const presets = butterchurnPresetsLib.getPresets()
-        const names = Object.keys(presets)
-        setInlinePresetList(names)
-        if (names.length > 0) {
-          setInlinePreset(names[Math.floor(Math.random() * names.length)])
-        }
-      } catch (e) {
-        console.error('Failed to load butterchurn for inline viz:', e)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [])
-
-  // Initialize/destroy inline visualizer
-  useEffect(() => {
-    if (!inlineVizActive || !inlineCanvasRef.current || !butterchurnLib || !inlinePreset) {
+    if (!inlineVizActive || !inlineCanvasRef.current) {
       if (inlineAnimRef.current) {
         cancelAnimationFrame(inlineAnimRef.current)
         inlineAnimRef.current = null
       }
-      inlineVizRef.current = null
       return
     }
 
+    connectAudioSource()
+    const analyser = getAnalyser()
+    if (!analyser) return
+
     const canvas = inlineCanvasRef.current
+    const ctx = canvas.getContext('2d')
     const wrap = canvas.parentElement
     if (!wrap) return
 
-    const rect = wrap.getBoundingClientRect()
+    const dpr = window.devicePixelRatio || 1
+    let w, h
 
-    try {
-      const createViz = butterchurnLib.default || butterchurnLib
-      const viz = createViz(getAudioContext(), canvas, {
-        width: Math.floor(rect.width),
-        height: Math.floor(rect.height),
-      })
-
-      const presets = butterchurnPresetsLib.getPresets()
-      viz.loadPreset(presets[inlinePreset], 0.0)
-      viz.setRendererSize(Math.floor(rect.width), Math.floor(rect.height))
-
-      const analyser = getAnalyser()
-      if (analyser) {
-        viz.connectAudio(analyser)
-      }
-
-      inlineVizRef.current = viz
-
-      const renderLoop = () => {
-        if (inlineVizRef.current) {
-          try {
-            inlineVizRef.current.render()
-          } catch {}
-        }
-        inlineAnimRef.current = requestAnimationFrame(renderLoop)
-      }
-      renderLoop()
-    } catch (e) {
-      console.error('Failed to create inline visualizer:', e)
+    const resize = () => {
+      const rect = wrap.getBoundingClientRect()
+      w = rect.width
+      h = rect.height
+      canvas.width = Math.floor(w * dpr)
+      canvas.height = Math.floor(h * dpr)
+      canvas.style.width = w + 'px'
+      canvas.style.height = h + 'px'
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
+    resize()
+
+    const bufferLength = analyser.frequencyBinCount
+    const dataArray = new Uint8Array(bufferLength)
+    const barCount = 64
+    const gap = 2
+
+    const render = () => {
+      inlineAnimRef.current = requestAnimationFrame(render)
+
+      ctx.clearRect(0, 0, w, h)
+
+      analyser.getByteFrequencyData(dataArray)
+
+      const barWidth = (w - gap * (barCount - 1)) / barCount
+      const step = Math.floor(bufferLength / barCount)
+
+      for (let i = 0; i < barCount; i++) {
+        const value = dataArray[i * step]
+        const barHeight = (value / 255) * h * 0.85
+        const x = i * (barWidth + gap)
+        const y = h - barHeight
+
+        const hue = 120 + (i / barCount) * 60
+        const lightness = 35 + (value / 255) * 25
+        ctx.fillStyle = `hsla(${hue}, 70%, ${lightness}%, 0.85)`
+        ctx.fillRect(x, y, barWidth, barHeight)
+
+        const glowAlpha = (value / 255) * 0.4
+        ctx.fillStyle = `hsla(${hue}, 80%, 55%, ${glowAlpha})`
+        ctx.fillRect(x, y - 2, barWidth, 3)
+      }
+    }
+
+    render()
+
+    const ro = new ResizeObserver(resize)
+    ro.observe(wrap)
 
     return () => {
       if (inlineAnimRef.current) {
         cancelAnimationFrame(inlineAnimRef.current)
         inlineAnimRef.current = null
       }
-      inlineVizRef.current = null
+      ro.disconnect()
     }
-  }, [inlineVizActive, inlinePreset, getAudioContext, getAnalyser])
-
-  // Handle resize for inline visualizer
-  useEffect(() => {
-    const handleResize = () => {
-      if (!inlineCanvasRef.current || !inlineVizRef.current) return
-      const wrap = inlineCanvasRef.current.parentElement
-      if (!wrap) return
-      const rect = wrap.getBoundingClientRect()
-      const w = Math.floor(rect.width)
-      const h = Math.floor(rect.height)
-      inlineCanvasRef.current.width = w
-      inlineCanvasRef.current.height = h
-      try {
-        inlineVizRef.current.setRendererSize(w, h)
-      } catch {}
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  }, [inlineVizActive, getAudioContext, getAnalyser, connectAudioSource])
 
   const toggleInlineViz = useCallback(() => {
     setInlineVizActive(prev => !prev)
   }, [])
-
-  const randomInlinePreset = useCallback(() => {
-    if (inlinePresetList.length === 0) return
-    const idx = Math.floor(Math.random() * inlinePresetList.length)
-    setInlinePreset(inlinePresetList[idx])
-  }, [inlinePresetList])
 
   const setPinnedTracks = useCallback((newVal) => {
     if (typeof newVal === 'function') {
@@ -346,7 +310,6 @@ export default function MusicPage({ isActive }) {
   return (
     <>
       <div className="music-grid">
-        {/* Column 1 - Left */}
         <div className="music-c1-r1">
           <Tile
             label="Artists"
@@ -369,11 +332,9 @@ export default function MusicPage({ isActive }) {
           />
         </div>
 
-        {/* Center - ONE big tile (My Music, same as home center) */}
         <div className="music-center">
           <Tile
-            label="My Music"
-            icon={<img src="./assets/icons/Music.png" alt="My Music" />}
+            className="music-center-tile"
             style={tileCover ? {
               backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url("${tileCover}")`,
               backgroundSize: 'cover',
@@ -398,14 +359,12 @@ export default function MusicPage({ isActive }) {
               </div>
             )}
 
-            {/* Inline visualizer canvas */}
             {inlineVizActive && (
               <div className="music-inline-viz-wrap">
                 <canvas ref={inlineCanvasRef} className="music-inline-viz-canvas" />
               </div>
             )}
 
-            {/* Player bar inside the tile */}
             <div className="music-tile-player" onClick={(e) => e.stopPropagation()}>
               <div className="music-tile-player-controls">
                 <button className="music-btn" onClick={prev}>
@@ -472,27 +431,11 @@ export default function MusicPage({ isActive }) {
                     <rect x="18" y="10" width="2" height="4" rx="1" />
                   </svg>
                 </button>
-                {inlineVizActive && (
-                  <button
-                    className="music-viz-toggle"
-                    onClick={randomInlinePreset}
-                    title="Random Preset"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22" />
-                      <path d="m18 2 4 4-4 4" />
-                      <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2" />
-                      <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8" />
-                      <path d="m18 14 4 4-4 4" />
-                    </svg>
-                  </button>
-                )}
               </div>
             </div>
           </Tile>
         </div>
 
-        {/* Bottom middle tiles */}
         <div className="music-c2-r3">
           <Tile
             label="Recently Added"
@@ -508,7 +451,6 @@ export default function MusicPage({ isActive }) {
           />
         </div>
 
-        {/* Column 4 - Right */}
         <div className="music-c4-r1">
           <Tile
             label="Genres"
