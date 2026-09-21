@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
-import CollectionPage from './CollectionPage'
+import MusicCollectionPage from './MusicCollectionPage'
+import AudioVisualizer from './AudioVisualizer'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
@@ -21,35 +22,34 @@ export default function MusicPage({ isActive }) {
     formatTime,
     togglePlay, next, prev, seek,
     setVolume, toggleMute, playTrackByName,
+    addToQueue, playNext, playAlbum,
   } = useMusic()
 
-  const [showList, setShowList] = useState(false)
-  const [currentCover, setCurrentCover] = useState(null)
+  const [activeView, setActiveView] = useState(null)
+  const [showVisualizer, setShowVisualizer] = useState(false)
 
   const folderInputRef = useRef(null)
-  const coverFileInputRef = useRef(null)
 
-  const setPinnedTracks = (newVal) => {
+  const setPinnedTracks = useCallback((newVal) => {
     if (typeof newVal === 'function') {
       updateConfig('pinnedTracks', newVal(pinnedTracks))
     } else {
       updateConfig('pinnedTracks', newVal)
     }
-  }
+  }, [pinnedTracks, updateConfig])
 
-  const setCustomMusicCovers = (newVal) => {
+  const setCustomMusicCovers = useCallback((newVal) => {
     if (typeof newVal === 'function') {
       updateConfig('customMusicCovers', newVal(customMusicCovers))
     } else {
       updateConfig('customMusicCovers', newVal)
     }
-  }
+  }, [customMusicCovers, updateConfig])
 
-  const setMusicFolder = (newVal) => {
+  const setMusicFolder = useCallback((newVal) => {
     updateConfig('musicFolder', newVal)
-  }
+  }, [updateConfig])
 
-  // Electron: scan folder from filesystem
   useEffect(() => {
     if (musicFolder && isElectron()) {
       try {
@@ -154,109 +154,108 @@ export default function MusicPage({ isActive }) {
     setMusicFolder(e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Music')
   }
 
-  const playTrack = (index) => {
-    if (index >= 0 && index < playlist.length) {
-      setCurrentTrackIndex(index)
-    }
-  }
-
-  const playTileMusic = (filePath) => {
-    if (!filePath) return
-    const track = playlist.find(t => t.path === filePath)
-    if (track) {
-      playTrackByName(track.path)
-    } else {
-      const newTrack = {
-        id: filePath,
-        name: filePath.split('/').pop().split('\\').pop().replace(/\.[^.]+$/, ''),
-        path: filePath,
-        url: isElectron() ? toFileUrl(filePath) : '',
-        artist: '', album: '', genre: '', duration: 0, cover: '', isPinned: false,
-      }
-      setPlaylist(prev => [...prev, newTrack])
-      playTrackByName(newTrack.path)
-    }
-  }
-
-  const displayTracks = useMemo(() => {
-    const pinned = [...pinnedTracks]
-    const availableRandom = playlist.filter(p => !pinned.includes(p.path))
-    const shuffled = availableRandom.sort(() => 0.5 - Math.random())
-    const combined = [...pinned.map(p => playlist.find(t => t.path === p)).filter(Boolean), ...shuffled].slice(0, 10)
-
-    return combined.map(t => ({
-      ...t,
-      isPinned: pinned.includes(t.path),
-      cover: customMusicCovers[t.path] || t.cover || '',
-    }))
-  }, [pinnedTracks, playlist, customMusicCovers])
-
-  const togglePinTrack = (trackPath, e) => {
-    e.stopPropagation()
-    setPinnedTracks(prev => prev.includes(trackPath) ? prev.filter(p => p !== trackPath) : [...prev, trackPath])
-  }
-
   useEffect(() => {
     if (!isActive) {
-      setShowList(false)
-      setEditingMusicPath(null)
+      setActiveView(null)
+      setShowVisualizer(false)
     }
   }, [isActive])
 
-  const [editingMusicPath, setEditingMusicPath] = useState(null)
-  const [editMusicCover, setEditMusicCover] = useState('')
-
-  const handleMusicContextMenu = (e, path) => {
-    e.preventDefault()
-    setEditingMusicPath(path)
-    setEditMusicCover(customMusicCovers[path] || '')
+  const getCoverUrl = (track) => {
+    if (!track) return ''
+    return customMusicCovers[track.path] || track.cover || ''
   }
 
-  const saveMusicCover = () => {
-    setCustomMusicCovers(prev => ({ ...prev, [editingMusicPath]: editMusicCover }))
-    setEditingMusicPath(null)
-  }
-
-  const renderMusicTile = (track) => {
-    if (!track) return <Tile />
-    const coverUrl = customMusicCovers[track.path] || track.cover || ''
-    return (
-      <Tile
-        label={track.name}
-        icon={<img src="./assets/icons/Music.png" alt="Track" />}
-        style={coverUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("${coverUrl}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-        onClick={() => playTileMusic(track.path)}
-        onContextMenu={(e) => {
-          if (track.isPinned) handleMusicContextMenu(e, track.path)
-        }}
-      />
-    )
+  const getTileCover = () => {
+    const pinned = playlist.filter(t => pinnedTracks.includes(t.path))
+    const fallback = pinned.length > 0 ? pinned[0] : playlist[0]
+    return fallback ? getCoverUrl(fallback) : ''
   }
 
   const trackName = currentTrack?.name || 'No music playing'
-  const trackCover = currentTrack ? (customMusicCovers[currentTrack.path] || currentTrack.cover || '') : ''
+  const trackCover = currentTrack ? getCoverUrl(currentTrack) : ''
   const trackArtist = currentTrack?.artist || ''
+
+  const tileCover = getTileCover()
 
   return (
     <>
       <div className="music-grid">
-        <div className="music-tile-wrapper" style={{ gridColumn: 1, gridRow: 1 }}>
-          <Tile label="My Musics" icon={<img src="./assets/icons/Music.png" alt="My Musics" />} onClick={() => setShowList(true)} />
+        {/* Column 1 - Left */}
+        <div className="music-c1-r1">
+          <Tile
+            label="Artists"
+            icon={<img src="./assets/icons/Music.png" alt="Artists" />}
+            onClick={() => setActiveView('artists')}
+          />
         </div>
-        <div className="music-tile-wrapper" style={{ gridColumn: 1, gridRow: 2 }}>
-          <Tile label="Music Folder" icon={<img src="./assets/icons/Folder.png" alt="Music Folder" />} onClick={selectFolder} />
+        <div className="music-c1-r2">
+          <Tile
+            label="Albums"
+            icon={<img src="./assets/icons/Music.png" alt="Albums" />}
+            onClick={() => setActiveView('albums')}
+          />
+        </div>
+        <div className="music-c1-r3">
+          <Tile
+            label="Songs"
+            icon={<img src="./assets/icons/Music.png" alt="Songs" />}
+            onClick={() => setActiveView('songs')}
+          />
         </div>
 
-        {displayTracks.map((track, i) => (
-          <div className="music-tile-wrapper" key={`t${i}`}>
-            {renderMusicTile(track)}
-          </div>
-        ))}
-        {Array.from({ length: 10 - displayTracks.length }).map((_, i) => (
-          <div className="music-tile-wrapper" key={`empty${i}`}>
-            <Tile label="Track" />
-          </div>
-        ))}
+        {/* Center - ONE big tile (My Music, same as home center) */}
+        <div className="music-center">
+          <Tile
+            label="My Music"
+            icon={<img src="./assets/icons/Music.png" alt="My Music" />}
+            style={tileCover ? {
+              backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.65)), url("${tileCover}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            } : {}}
+            onClick={() => setActiveView('songs')}
+          />
+        </div>
+
+        {/* Bottom middle tiles */}
+        <div className="music-c2-r3">
+          <Tile
+            label="Recently Added"
+            icon={<img src="./assets/icons/Music.png" alt="Recently Added" />}
+            onClick={() => setActiveView('recentlyAdded')}
+          />
+        </div>
+        <div className="music-c3-r3">
+          <Tile
+            label="Smart Mixes"
+            icon={<img src="./assets/icons/Music.png" alt="Smart Mixes" />}
+            onClick={() => setActiveView('smartMixes')}
+          />
+        </div>
+
+        {/* Column 4 - Right */}
+        <div className="music-c4-r1">
+          <Tile
+            label="Genres"
+            icon={<img src="./assets/icons/Music.png" alt="Genres" />}
+            onClick={() => setActiveView('genres')}
+          />
+        </div>
+        <div className="music-c4-r2">
+          <Tile
+            label="Playlists"
+            icon={<img src="./assets/icons/Music.png" alt="Playlists" />}
+            onClick={() => setActiveView('playlists')}
+          />
+        </div>
+        <div className="music-c4-r3">
+          <Tile
+            label="Favorites"
+            icon={<img src="./assets/icons/Music.png" alt="Favorites" />}
+            onClick={() => setActiveView('favorites')}
+          />
+        </div>
       </div>
 
       <div className="music-player-container">
@@ -314,89 +313,24 @@ export default function MusicPage({ isActive }) {
 
       <input ref={folderInputRef} type="file" webkitdirectory="" directory="" multiple style={{ display: 'none' }} onChange={handleFolderInput} accept="audio/*" />
 
-      {/* MY MUSIC COLLECTION */}
-      {showList && (
-        <CollectionPage
-          title="My Music"
-          items={playlist.map(t => ({
-            ...t,
-            id: t.id || t.path,
-            icon: t.cover || '',
-          }))}
-          onClose={() => setShowList(false)}
-          onItemAction={(track) => {
-            const idx = playlist.findIndex(t => t.id === track.id || t.path === track.path)
-            if (idx !== -1) setCurrentTrackIndex(idx)
-          }}
-          onPin={(track) => togglePinTrack(track.path, new Event('click'))}
-          onEditItem={(track) => handleMusicContextMenu(new Event('contextmenu'), track.path)}
-          onDeleteItem={(track) => {
-            setPlaylist(prev => prev.filter(t => t.path !== track.path))
-            setPinnedTracks(prev => prev.filter(p => p !== track.path))
-          }}
-          emptyMessage="No music found. Click + Add Music Folder to load songs."
+      {activeView && (
+        <MusicCollectionPage
+          view={activeView}
+          playlist={playlist}
+          onClose={() => setActiveView(null)}
           isActive={isActive}
-          mode="music"
-          showPinButton
-          onAddItem={selectFolder}
-          renderItem={(track) => {
-            const coverUrl = customMusicCovers[track.path] || track.cover || ''
-            if (coverUrl) {
-              return <img src={coverUrl} alt={track.name} decoding="async" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            }
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
-                <img src="./assets/icons/Music.png" alt="" style={{ width: 48, height: 48, opacity: 0.6 }} />
-                <span style={{ fontSize: '0.7rem', color: '#107c10' }}>{track.artist || 'Unknown Artist'}</span>
-              </div>
-            )
-          }}
+          config={config}
+          updateConfig={updateConfig}
+          customMusicCovers={customMusicCovers}
+          onPlayTrack={(idx) => setCurrentTrackIndex(idx)}
+          onPlayAlbum={(tracks, shuffle) => playAlbum(tracks, shuffle)}
+          onAddToQueue={(track) => addToQueue(track)}
+          onPlayNext={(track) => playNext(track)}
         />
       )}
 
-      {/* Editing Modal for Custom Covers */}
-      {editingMusicPath && createPortal(
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>Customize Pinned Music</h2>
-
-            <label>Cover Image Path (optional)</label>
-            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-              <input
-                type="text"
-                placeholder="Enter image URL or select a file"
-                value={editMusicCover}
-                onChange={(e) => setEditMusicCover(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              {isElectron() ? (
-                <button className="modal-btn" onClick={async () => {
-                  const ipcRenderer = getIpcRenderer()
-                  const res = await ipcRenderer.invoke('dialog:openFile', { filters: [{ name: 'Images', extensions: ['jpg', 'png', 'jpeg', 'gif', 'bmp', 'webp'] }] })
-                  if (res && !res.canceled && res.filePaths.length > 0) {
-                    let fp = res.filePaths[0].replace(/\\/g, '/')
-                    if (fp.match(/^[a-zA-Z]:/)) fp = `file:///${fp}`
-                    setEditMusicCover(fp)
-                  }
-                }} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
-              ) : (
-                <>
-                  <input ref={coverFileInputRef} type="file" style={{ display: 'none' }} onChange={(e) => {
-                    const file = e.target.files[0]
-                    if (file) setEditMusicCover(URL.createObjectURL(file))
-                  }} accept="image/*" />
-                  <button className="modal-btn" onClick={() => coverFileInputRef.current?.click()} style={{ padding: '0 15px', fontSize: 20 }}>+</button>
-                </>
-              )}
-            </div>
-
-            <div className="modal-actions" style={{ marginTop: 20 }}>
-              <button className="modal-btn cancel" onClick={() => setEditingMusicPath(null)}>Cancel</button>
-              <button className="modal-btn confirm" onClick={saveMusicCover}>Save</button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {showVisualizer && (
+        <AudioVisualizer onClose={() => setShowVisualizer(false)} isActive={isActive} />
       )}
     </>
   )

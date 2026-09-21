@@ -49,6 +49,10 @@ function loadFromLocalStorage() {
     pinnedTracks: JSON.parse(localStorage.getItem('pinnedTracks') || '[]'),
     customMusicCovers: JSON.parse(localStorage.getItem('customMusicCovers') || '{}'),
     musicFolder: localStorage.getItem('musicFolder') || '',
+    musicPlaylists: JSON.parse(localStorage.getItem('musicPlaylists') || '[]'),
+    musicPlayCounts: JSON.parse(localStorage.getItem('musicPlayCounts') || '{}'),
+    musicRecentlyPlayed: JSON.parse(localStorage.getItem('musicRecentlyPlayed') || '[]'),
+    musicFavorites: JSON.parse(localStorage.getItem('musicFavorites') || '[]'),
     videoFolder: localStorage.getItem('videoFolder') || '',
     videoFolders,
     homeTiles: JSON.parse(localStorage.getItem('homeTiles') || '{}'),
@@ -64,6 +68,10 @@ function saveToLocalStorage(data) {
   localStorage.setItem('pinnedTracks', JSON.stringify(data.pinnedTracks))
   localStorage.setItem('customMusicCovers', JSON.stringify(data.customMusicCovers))
   localStorage.setItem('musicFolder', data.musicFolder)
+  localStorage.setItem('musicPlaylists', JSON.stringify(data.musicPlaylists || []))
+  localStorage.setItem('musicPlayCounts', JSON.stringify(data.musicPlayCounts || {}))
+  localStorage.setItem('musicRecentlyPlayed', JSON.stringify(data.musicRecentlyPlayed || []))
+  localStorage.setItem('musicFavorites', JSON.stringify(data.musicFavorites || []))
   localStorage.setItem('videoFolder', data.videoFolder)
   localStorage.setItem('videoFolders', JSON.stringify(data.videoFolders || []))
   localStorage.setItem('homeTiles', JSON.stringify(data.homeTiles))

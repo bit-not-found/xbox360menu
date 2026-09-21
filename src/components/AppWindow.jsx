@@ -54,13 +54,14 @@ function buildRetroarchInputConfig(controllerSettings) {
     const playerBindings = bindings[i] || {}
     const playerNum = i + 1
 
-    for (const [virtualBtn, defaultIdx] of Object.entries(XBOX_BTN_INDEX)) {
-      const retroKey = RETROARCH_BTN_KEY[virtualBtn]
-      if (!retroKey) continue
+    if (assignment.type === 'gamepad') {
+      config[`input_player${playerNum}_joypad_index`] = String(assignment.index)
 
-      const binding = playerBindings[virtualBtn]
+      for (const [virtualBtn, defaultIdx] of Object.entries(XBOX_BTN_INDEX)) {
+        const retroKey = RETROARCH_BTN_KEY[virtualBtn]
+        if (!retroKey) continue
 
-      if (assignment.type === 'gamepad') {
+        const binding = playerBindings[virtualBtn]
         if (binding && typeof binding === 'string' && binding.startsWith('gamepad:')) {
           const gpBtn = binding.replace('gamepad:', '')
           const gpIdx = XBOX_BTN_INDEX[gpBtn]
@@ -69,11 +70,14 @@ function buildRetroarchInputConfig(controllerSettings) {
           config[`input_player${playerNum}_${retroKey}_btn`] = String(defaultIdx)
         }
       }
-
-      if (binding && typeof binding === 'string' && !binding.startsWith('gamepad:')) {
-        const keyName = jsKeyToRetroarch(binding)
-        if (keyName) {
-          config[`input_player${playerNum}_key_${virtualBtn}`] = keyName
+    } else if (assignment.type === 'keyboard') {
+      for (const [virtualBtn] of Object.entries(XBOX_BTN_INDEX)) {
+        const binding = playerBindings[virtualBtn]
+        if (binding && typeof binding === 'string' && !binding.startsWith('gamepad:')) {
+          const keyName = jsKeyToRetroarch(binding)
+          if (keyName) {
+            config[`input_player${playerNum}_key_${virtualBtn}`] = keyName
+          }
         }
       }
     }
@@ -164,25 +168,12 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
           : app.rom
 
         const controllerSettings = config?.controllerSettings || {}
-        const assignments = controllerSettings.playerAssignments || [{ type: 'keyboard' }, null, null, null]
 
         const retroarchConfig = {
           rewind_enable: true,
           savestate_thumbnail_enable: true,
+          ...buildRetroarchInputConfig(controllerSettings),
         }
-
-        const p1 = assignments[0]
-        const p2 = assignments[1]
-
-        if (p1?.type === 'gamepad') {
-          retroarchConfig.input_player1_joypad_index = String(p1.index)
-        }
-        if (p2?.type === 'gamepad') {
-          retroarchConfig.input_player2_joypad_index = String(p2.index)
-        }
-
-        const remapConfig = buildRetroarchInputConfig(controllerSettings)
-        Object.assign(retroarchConfig, remapConfig)
 
         const nostalgist = await Nostalgist.launch({
           core: app.core || 'fceumm',

@@ -28,10 +28,15 @@
     },
     "linux": {
       "icon": "public/assets/icon.png",
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   },
   "dependencies": {
+    "butterchurn": "^2.6.7",
+    "butterchurn-presets": "^2.4.7",
     "music-metadata": "^11.12.3",
     "nostalgist": "^0.22.0",
     "react": "^19.2.5",

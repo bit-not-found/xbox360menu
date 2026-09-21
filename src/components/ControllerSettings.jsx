@@ -149,6 +149,13 @@ export default function ControllerSettings({ onClose, isActive }) {
 
   const updateAssignment = useCallback((playerIndex, assignment) => {
     const newAssignments = [...settings.playerAssignments]
+    if (assignment?.type === 'gamepad') {
+      for (let i = 0; i < newAssignments.length; i++) {
+        if (i !== playerIndex && newAssignments[i]?.type === 'gamepad' && newAssignments[i]?.index === assignment.index) {
+          newAssignments[i] = null
+        }
+      }
+    }
     newAssignments[playerIndex] = assignment
     updateSetting('playerAssignments', newAssignments)
   }, [settings, updateSetting])
