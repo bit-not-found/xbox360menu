@@ -80,6 +80,8 @@ export default function MusicCollectionPage({
   onPlayAlbum,
   onAddToQueue,
   onPlayNext,
+  onAddFolder,
+  onAddSong,
 }) {
   const [isClosing, setIsClosing] = useState(false)
   const [view, setView] = useState(initialView)
@@ -842,6 +844,22 @@ export default function MusicCollectionPage({
                   {chip.label}
                 </button>
               ))}
+              {playlist.length > 0 && onAddFolder && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddFolder() }}
+                >
+                  + Add Folder
+                </button>
+              )}
+              {playlist.length > 0 && onAddSong && (
+                <button
+                  className="collection-chip collection-chip-add"
+                  onClick={() => { playSelect(); onAddSong() }}
+                >
+                  + Add Song
+                </button>
+              )}
             </div>
           </div>
           <div className="collection-title-area">

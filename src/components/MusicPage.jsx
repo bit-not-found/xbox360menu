@@ -259,20 +259,22 @@ export default function MusicPage({ isActive }) {
             } : {}}
             onClick={() => setActiveView('songs')}
           >
-            <div className="music-center-actions">
-              <button
-                className="music-center-action-btn"
-                onClick={(e) => { e.stopPropagation(); selectFolder() }}
-              >
-                + Add Folder
-              </button>
-              <button
-                className="music-center-action-btn"
-                onClick={(e) => { e.stopPropagation(); songsInputRef.current?.click() }}
-              >
-                + Add Song
-              </button>
-            </div>
+            {playlist.length === 0 && (
+              <div className="music-center-actions">
+                <button
+                  className="music-center-action-btn"
+                  onClick={(e) => { e.stopPropagation(); selectFolder() }}
+                >
+                  + Add Folder
+                </button>
+                <button
+                  className="music-center-action-btn"
+                  onClick={(e) => { e.stopPropagation(); songsInputRef.current?.click() }}
+                >
+                  + Add Song
+                </button>
+              </div>
+            )}
           </Tile>
         </div>
 
@@ -385,6 +387,8 @@ export default function MusicPage({ isActive }) {
           onPlayAlbum={(tracks, shuffle) => playAlbum(tracks, shuffle)}
           onAddToQueue={(track) => addToQueue(track)}
           onPlayNext={(track) => playNext(track)}
+          onAddFolder={selectFolder}
+          onAddSong={() => songsInputRef.current?.click()}
         />
       )}
 
