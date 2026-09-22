@@ -3,6 +3,7 @@ import Tile from './Tile'
 import MusicCollectionPage from './MusicCollectionPage'
 import AudioVisualizer from './AudioVisualizer'
 import FullscreenPlayer from './FullscreenPlayer'
+import barsVisualizer from './visualizers/bars.js'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
@@ -70,35 +71,15 @@ export default function MusicPage({ isActive }) {
     resize()
 
     const bufferLength = analyser.frequencyBinCount
-    const dataArray = new Uint8Array(bufferLength)
-    const barCount = 64
-    const gap = 2
+    const freqData = new Uint8Array(bufferLength)
+    const timeData = new Uint8Array(bufferLength)
 
     const render = () => {
       inlineAnimRef.current = requestAnimationFrame(render)
-
       ctx.clearRect(0, 0, w, h)
-
-      analyser.getByteFrequencyData(dataArray)
-
-      const barWidth = (w - gap * (barCount - 1)) / barCount
-      const step = Math.floor(bufferLength / barCount)
-
-      for (let i = 0; i < barCount; i++) {
-        const value = dataArray[i * step]
-        const barHeight = (value / 255) * h * 0.85
-        const x = i * (barWidth + gap)
-        const y = h - barHeight
-
-        const hue = 120 + (i / barCount) * 60
-        const lightness = 35 + (value / 255) * 25
-        ctx.fillStyle = `hsla(${hue}, 70%, ${lightness}%, 0.85)`
-        ctx.fillRect(x, y, barWidth, barHeight)
-
-        const glowAlpha = (value / 255) * 0.4
-        ctx.fillStyle = `hsla(${hue}, 80%, 55%, ${glowAlpha})`
-        ctx.fillRect(x, y - 2, barWidth, 3)
-      }
+      analyser.getByteFrequencyData(freqData)
+      analyser.getByteTimeDomainData(timeData)
+      barsVisualizer.draw(ctx, w, h, analyser, freqData, timeData)
     }
 
     render()

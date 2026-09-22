@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useMusic } from '../context/MusicContext'
+import visualizers from './visualizers/index.js'
 
 const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -18,17 +19,12 @@ const NAV_ITEMS = [
   { id: 'smartMixes', label: 'Smart Mixes', icon: '✨' },
   { id: 'recentlyAdded', label: 'Recently Added', icon: '🕐' },
   { id: 'favorites', label: 'Favorites', icon: '❤' },
-]
-
-const VIZ_MODES = [
-  { id: 'bars', label: 'Frequency Bars' },
-  { id: 'circular', label: 'Circular' },
-  { id: 'waveform', label: 'Waveform' },
+  { id: '_visualizer', label: 'Visualizer', icon: '🎨', isSettings: true },
 ]
 
 export default function FullscreenPlayer({ onClose, isActive, onNavigate, customMusicCovers = {} }) {
   const [isClosing, setIsClosing] = useState(false)
-  const [vizMode, setVizMode] = useState('bars')
+  const [vizMode, setVizMode] = useState(visualizers[0]?.id || 'bars')
   const [showSettings, setShowSettings] = useState(false)
   const [activeNav, setActiveNav] = useState('songs')
 
@@ -77,7 +73,13 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
   const handleNavClick = useCallback((id) => {
     playSelect()
     setActiveNav(id)
-    if (onNavigate) onNavigate(id)
+    const item = NAV_ITEMS.find(n => n.id === id)
+    if (item?.isSettings) {
+      setShowSettings(prev => !prev)
+    } else {
+      setShowSettings(false)
+      if (onNavigate) onNavigate(id)
+    }
   }, [onNavigate])
 
   // Visualizer rendering
@@ -109,117 +111,14 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
     const freqData = new Uint8Array(bufferLength)
     const timeData = new Uint8Array(bufferLength)
 
-    const drawBars = () => {
-      ctx.clearRect(0, 0, w, h)
-      analyser.getByteFrequencyData(freqData)
-
-      const barCount = 80
-      const gap = 3
-      const barWidth = (w - gap * (barCount - 1)) / barCount
-      const step = Math.floor(bufferLength / barCount)
-
-      for (let i = 0; i < barCount; i++) {
-        const value = freqData[i * step]
-        const barHeight = (value / 255) * h * 0.8
-        const x = i * (barWidth + gap)
-        const y = h - barHeight
-
-        const hue = 140 + (i / barCount) * 80
-        const sat = 60 + (value / 255) * 30
-        const light = 30 + (value / 255) * 30
-
-        ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.9)`
-        ctx.fillRect(x, y, barWidth, barHeight)
-
-        ctx.fillStyle = `hsla(${hue}, ${sat + 10}%, ${light + 15}%, 0.5)`
-        ctx.fillRect(x, y - 3, barWidth, 3)
-      }
-    }
-
-    const drawCircular = () => {
-      ctx.clearRect(0, 0, w, h)
-      analyser.getByteFrequencyData(freqData)
-
-      const cx = w / 2
-      const cy = h / 2
-      const radius = Math.min(w, h) * 0.25
-      const barCount = 120
-      const step = Math.floor(bufferLength / barCount)
-
-      for (let i = 0; i < barCount; i++) {
-        const value = freqData[i * step]
-        const angle = (i / barCount) * Math.PI * 2 - Math.PI / 2
-        const barLen = (value / 255) * radius * 1.2
-
-        const x1 = cx + Math.cos(angle) * radius
-        const y1 = cy + Math.sin(angle) * radius
-        const x2 = cx + Math.cos(angle) * (radius + barLen)
-        const y2 = cy + Math.sin(angle) * (radius + barLen)
-
-        const hue = 140 + (i / barCount) * 80
-        const light = 35 + (value / 255) * 25
-
-        ctx.strokeStyle = `hsla(${hue}, 70%, ${light}%, 0.85)`
-        ctx.lineWidth = 2.5
-        ctx.beginPath()
-        ctx.moveTo(x1, y1)
-        ctx.lineTo(x2, y2)
-        ctx.stroke()
-      }
-
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-
-    const drawWaveform = () => {
-      ctx.clearRect(0, 0, w, h)
-      analyser.getByteTimeDomainData(timeData)
-
-      ctx.lineWidth = 2.5
-      ctx.strokeStyle = 'rgba(80, 200, 120, 0.9)'
-      ctx.beginPath()
-
-      const sliceWidth = w / bufferLength
-      let x = 0
-
-      for (let i = 0; i < bufferLength; i++) {
-        const v = timeData[i] / 128.0
-        const y = (v * h) / 2
-
-        if (i === 0) {
-          ctx.moveTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
-        }
-        x += sliceWidth
-      }
-
-      ctx.lineTo(w, h / 2)
-      ctx.stroke()
-
-      ctx.lineWidth = 6
-      ctx.strokeStyle = 'rgba(80, 200, 120, 0.15)'
-      ctx.beginPath()
-      x = 0
-      for (let i = 0; i < bufferLength; i++) {
-        const v = timeData[i] / 128.0
-        const y = (v * h) / 2
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-        x += sliceWidth
-      }
-      ctx.lineTo(w, h / 2)
-      ctx.stroke()
-    }
+    const activeViz = visualizers.find(v => v.id === vizMode) || visualizers[0]
 
     const render = () => {
       animRef.current = requestAnimationFrame(render)
-      if (vizMode === 'bars') drawBars()
-      else if (vizMode === 'circular') drawCircular()
-      else drawWaveform()
+      ctx.clearRect(0, 0, w, h)
+      analyser.getByteFrequencyData(freqData)
+      analyser.getByteTimeDomainData(timeData)
+      activeViz.draw(ctx, w, h, analyser, freqData, timeData)
     }
 
     render()
@@ -270,7 +169,7 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
             {NAV_ITEMS.map(item => (
               <button
                 key={item.id}
-                className={`fs-nav-item ${activeNav === item.id ? 'active' : ''}`}
+                className={`fs-nav-item ${(item.isSettings ? showSettings : activeNav === item.id) ? 'active' : ''}`}
                 onClick={() => handleNavClick(item.id)}
                 onMouseEnter={playHover}
               >
@@ -278,17 +177,6 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
                 <span className="fs-nav-label">{item.label}</span>
               </button>
             ))}
-          </div>
-
-          <div className="fs-sidebar-footer">
-            <button
-              className={`fs-nav-item ${showSettings ? 'active' : ''}`}
-              onClick={() => { playSelect(); setShowSettings(!showSettings) }}
-              onMouseEnter={playHover}
-            >
-              <span className="fs-nav-icon">⚙</span>
-              <span className="fs-nav-label">Visualizer Settings</span>
-            </button>
           </div>
         </div>
 
@@ -325,15 +213,15 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
               <button className="fs-settings-close" onClick={() => setShowSettings(false)}>✕</button>
             </div>
             <div className="fs-settings-list">
-              {VIZ_MODES.map(mode => (
+              {visualizers.map(viz => (
                 <button
-                  key={mode.id}
-                  className={`fs-settings-item ${vizMode === mode.id ? 'active' : ''}`}
-                  onClick={() => { playSelect(); setVizMode(mode.id) }}
+                  key={viz.id}
+                  className={`fs-settings-item ${vizMode === viz.id ? 'active' : ''}`}
+                  onClick={() => { playSelect(); setVizMode(viz.id) }}
                   onMouseEnter={playHover}
                 >
-                  <span className="fs-settings-check">{vizMode === mode.id ? '●' : '○'}</span>
-                  {mode.label}
+                  <span className="fs-settings-check">{vizMode === viz.id ? '●' : '○'}</span>
+                  {viz.label}
                 </button>
               ))}
             </div>
