@@ -35,6 +35,7 @@
     }
   },
   "dependencies": {
+    "browser-id3-writer": "^6.4.0",
     "butterchurn": "^2.6.7",
     "butterchurn-presets": "^2.4.7",
     "music-metadata": "^11.12.3",

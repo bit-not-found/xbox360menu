@@ -111,18 +111,21 @@ export default function AudioVisualizer({ onClose, isActive }) {
     if (!canvasRef.current || !butterchurnLib || !currentPreset || !supported) return
 
     const canvas = canvasRef.current
-    const rect = canvas.parentElement.getBoundingClientRect()
+    const parent = canvas.parentElement
+    // Layout size — immune to the scale() entry animation on the overlay
+    const rectW = parent ? parent.offsetWidth : 0
+    const rectH = parent ? parent.offsetHeight : 0
 
     try {
       const createViz = butterchurnLib.default || butterchurnLib
       const viz = createViz(getAudioContext(), canvas, {
-        width: Math.floor(rect.width),
-        height: Math.floor(rect.height),
+        width: Math.floor(rectW),
+        height: Math.floor(rectH),
       })
 
       const presets = butterchurnPresetsLib.getPresets()
       viz.loadPreset(presets[currentPreset], 0.0)
-      viz.setRendererSize(Math.floor(rect.width), Math.floor(rect.height))
+      viz.setRendererSize(Math.floor(rectW), Math.floor(rectH))
 
       const analyser = getAnalyser()
       if (analyser) {
@@ -153,21 +156,31 @@ export default function AudioVisualizer({ onClose, isActive }) {
     }
   }, [currentPreset, supported, getAudioContext, getAnalyser])
 
-  // Handle resize
+  // Handle resize (ResizeObserver catches layout changes; offset dims ignore transforms)
   useEffect(() => {
+    if (!canvasRef.current) return
+    const parent = canvasRef.current.parentElement
+    if (!parent) return
+
     const handleResize = () => {
       if (!canvasRef.current || !visualizerRef.current) return
-      const rect = canvasRef.current.parentElement.getBoundingClientRect()
-      const w = Math.floor(rect.width)
-      const h = Math.floor(rect.height)
+      const w = parent.offsetWidth
+      const h = parent.offsetHeight
+      if (!w || !h) return
       canvasRef.current.width = w
       canvasRef.current.height = h
       try {
         visualizerRef.current.setRendererSize(w, h)
       } catch {}
     }
+
+    const ro = new ResizeObserver(handleResize)
+    ro.observe(parent)
     window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   const changePreset = useCallback((name) => {

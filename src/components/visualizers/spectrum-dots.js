@@ -3,16 +3,17 @@ export default {
   label: 'Spectrum Dots',
 
   draw(ctx, w, h, analyser, freqData) {
-    const cols = 48
-    const rows = 24
+    // Scale the matrix to the screen so dots stay evenly spaced at any size
+    const cols = Math.max(32, Math.min(96, Math.round(w / 26)))
+    const rows = Math.max(16, Math.min(56, Math.round(h / 26)))
     const gap = 4
     const dotW = (w - gap * (cols - 1)) / cols
     const dotH = (h - gap * (rows - 1)) / rows
     const dotSize = Math.min(dotW, dotH) * 0.8
-    const step = Math.floor(freqData.length / cols)
+    const step = Math.max(1, Math.floor(freqData.length / cols))
 
     for (let col = 0; col < cols; col++) {
-      const value = freqData[col * step]
+      const value = freqData[Math.min(col * step, freqData.length - 1)]
       const activeRows = Math.round((value / 255) * rows)
       const x = col * (dotW + gap) + dotW / 2
 

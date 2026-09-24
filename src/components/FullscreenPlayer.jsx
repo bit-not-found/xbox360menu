@@ -27,6 +27,7 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
   const [vizMode, setVizMode] = useState(visualizers[0]?.id || 'bars')
   const [showSettings, setShowSettings] = useState(false)
   const [activeNav, setActiveNav] = useState('songs')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const canvasRef = useRef(null)
   const animRef = useRef(null)
@@ -96,9 +97,15 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
     let w, h
 
     const resize = () => {
-      const rect = canvas.parentElement.getBoundingClientRect()
-      w = rect.width
-      h = rect.height
+      const parent = canvas.parentElement
+      if (!parent) return
+      // offsetWidth/offsetHeight report layout size, unaffected by the
+      // scale(1.05) entry animation that getBoundingClientRect would inflate
+      const pw = parent.offsetWidth
+      const ph = parent.offsetHeight
+      if (!pw || !ph) return
+      w = pw
+      h = ph
       canvas.width = Math.floor(w * dpr)
       canvas.height = Math.floor(h * dpr)
       canvas.style.width = w + 'px'
@@ -155,7 +162,7 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
         )}
 
         {/* Left navigation sidebar */}
-        <div className="fs-sidebar">
+        <div className={`fs-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div className="fs-sidebar-header">
             <button className="fs-close-btn" onClick={handleClose} title="Back">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -163,6 +170,15 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
               </svg>
             </button>
             <span className="fs-sidebar-title">My Music</span>
+            <button
+              className="fs-collapse-btn"
+              onClick={() => { playSelect(); setSidebarCollapsed(true) }}
+              title="Collapse sidebar"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
           </div>
 
           <div className="fs-nav-list">
@@ -179,6 +195,19 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
             ))}
           </div>
         </div>
+
+        {/* Expand button shown while sidebar is collapsed */}
+        {sidebarCollapsed && (
+          <button
+            className="fs-sidebar-expand"
+            onClick={() => { playSelect(); setSidebarCollapsed(false) }}
+            title="Show sidebar"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        )}
 
         {/* Main content area */}
         <div className="fs-main">

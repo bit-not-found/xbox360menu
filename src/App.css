@@ -1192,6 +1192,23 @@
   flex-direction: column;
   z-index: 10;
   padding: 16px 0;
+  overflow: hidden;
+  transition:
+    width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    min-width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+    border-right-width 0.3s ease,
+    opacity 0.2s ease,
+    padding 0.3s ease;
+}
+
+.fs-sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  border-right-width: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
 }
 
 .fs-sidebar-header {
@@ -1201,6 +1218,60 @@
   padding: 8px 16px 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: 8px;
+  box-sizing: border-box;
+  min-width: 220px;
+}
+
+.fs-collapse-btn {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 6px;
+  color: #ccc;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.fs-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.fs-sidebar-expand {
+  position: absolute;
+  top: 20px;
+  left: 16px;
+  z-index: 12;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #ccc;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  animation: fadeIn 0.25s ease;
+}
+
+.fs-sidebar-expand:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .fs-close-btn {
@@ -1232,6 +1303,8 @@
   flex: 1;
   overflow-y: auto;
   padding: 4px 8px;
+  box-sizing: border-box;
+  min-width: 220px;
 }
 
 .fs-nav-item {
@@ -4293,6 +4366,144 @@ body > canvas#canvas {
   max-width: 250px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ===== EDIT TAGS MODAL ===== */
+.music-edit-modal {
+  width: 560px;
+}
+
+.music-edit-path {
+  font-size: 0.7rem;
+  font-family: monospace;
+  color: #777;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: -8px;
+}
+
+.music-edit-status {
+  color: #aaa;
+  font-size: 0.9rem;
+  padding: 16px 0;
+}
+
+.music-edit-error {
+  background: rgba(220, 50, 50, 0.12);
+  border: 1px solid rgba(220, 50, 50, 0.4);
+  color: #ff8a8a;
+  font-size: 0.8rem;
+  padding: 8px 10px;
+}
+
+.music-edit-note {
+  color: #888;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.music-edit-body {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.music-edit-cover-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  width: 150px;
+}
+
+.music-edit-cover {
+  width: 150px;
+  height: 150px;
+  background: #111;
+  border: 1px dashed #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.music-edit-cover:hover {
+  border-color: #108710;
+}
+
+.music-edit-cover.has {
+  border-style: solid;
+}
+
+.music-edit-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.music-edit-cover span {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.music-edit-cover-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.music-edit-cover-btn {
+  flex: 1;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #ccc;
+  font-size: 0.7rem;
+  padding: 5px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.music-edit-cover-btn:hover:not(:disabled) {
+  background: #333;
+  color: #fff;
+}
+
+.music-edit-cover-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.music-edit-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  align-content: start;
+  min-width: 0;
+}
+
+.music-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.music-edit-field.span {
+  grid-column: 1 / -1;
+}
+
+.music-edit-field input:disabled {
+  opacity: 0.6;
+}
+
+.modal-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ===== MUSIC EMPTY STATE ===== */

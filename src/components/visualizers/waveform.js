@@ -3,38 +3,41 @@ export default {
   label: 'Waveform',
 
   draw(ctx, w, h, analyser, freqData, timeData) {
-    ctx.lineWidth = 2.5
-    ctx.strokeStyle = 'rgba(80, 200, 120, 0.9)'
-    ctx.beginPath()
+    const centerY = h / 2
+    // Amplified so the wave uses the full height of the screen
+    const amp = h * 0.9
+    const lineWidth = Math.max(2, h * 0.003)
 
-    const sliceWidth = w / timeData.length
-    let x = 0
-
-    for (let i = 0; i < timeData.length; i++) {
-      const v = timeData[i] / 128.0
-      const y = (v * h) / 2
-
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-      x += sliceWidth
+    const yAt = (i) => {
+      const v = timeData[i] / 128.0 - 1
+      const y = centerY + v * amp
+      return Math.max(2, Math.min(h - 2, y))
     }
 
-    ctx.lineTo(w, h / 2)
+    // Glow line (drawn first, underneath)
+    ctx.lineWidth = lineWidth * 2.5
+    ctx.strokeStyle = 'rgba(80, 200, 120, 0.15)'
+    ctx.lineJoin = 'round'
+    ctx.beginPath()
+    const sliceWidth = w / timeData.length
+    for (let i = 0; i < timeData.length; i++) {
+      const x = i * sliceWidth
+      if (i === 0) ctx.moveTo(x, yAt(i))
+      else ctx.lineTo(x, yAt(i))
+    }
+    ctx.lineTo(w, centerY)
     ctx.stroke()
 
-    // Shadow / glow line
-    ctx.lineWidth = 6
-    ctx.strokeStyle = 'rgba(80, 200, 120, 0.15)'
+    // Main wave line
+    ctx.lineWidth = lineWidth
+    ctx.strokeStyle = 'rgba(80, 200, 120, 0.9)'
     ctx.beginPath()
-    x = 0
     for (let i = 0; i < timeData.length; i++) {
-      const v = timeData[i] / 128.0
-      const y = (v * h) / 2
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-      x += sliceWidth
+      const x = i * sliceWidth
+      if (i === 0) ctx.moveTo(x, yAt(i))
+      else ctx.lineTo(x, yAt(i))
     }
-    ctx.lineTo(w, h / 2)
+    ctx.lineTo(w, centerY)
     ctx.stroke()
   },
 }

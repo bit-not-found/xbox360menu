@@ -3,15 +3,16 @@ export default {
   label: 'Bars Mirror',
 
   draw(ctx, w, h, analyser, freqData) {
-    const barCount = 64
-    const gap = 2
+    const barCount = Math.max(40, Math.min(120, Math.round(w / 22)))
+    const gap = Math.max(2, Math.min(4, w / 720))
     const barWidth = (w - gap * (barCount - 1)) / barCount
-    const step = Math.floor(freqData.length / barCount)
+    const step = Math.max(1, Math.floor(freqData.length / barCount))
     const centerY = h / 2
+    const maxHalf = (h / 2) * 0.96
 
     for (let i = 0; i < barCount; i++) {
-      const value = freqData[i * step]
-      const barHeight = (value / 255) * (h / 2) * 0.85
+      const value = freqData[Math.min(i * step, freqData.length - 1)]
+      const barHeight = (value / 255) * maxHalf
       const x = i * (barWidth + gap)
 
       const hue = 200 + (i / barCount) * 120
@@ -19,11 +20,17 @@ export default {
       const light = 30 + (value / 255) * 30
 
       // Top half (grows upward from center)
-      ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.9)`
+      const topGrad = ctx.createLinearGradient(x, centerY, x, centerY - barHeight)
+      topGrad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, 0.95)`)
+      topGrad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light + 15}%, 0.6)`)
+      ctx.fillStyle = topGrad
       ctx.fillRect(x, centerY - barHeight, barWidth, barHeight)
 
       // Bottom half (grows downward from center — mirror)
-      ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.7)`
+      const botGrad = ctx.createLinearGradient(x, centerY, x, centerY + barHeight)
+      botGrad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, 0.85)`)
+      botGrad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light + 10}%, 0.35)`)
+      ctx.fillStyle = botGrad
       ctx.fillRect(x, centerY, barWidth, barHeight)
 
       // Center glow line

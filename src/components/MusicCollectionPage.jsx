@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
+import { isElectron, getNodeFs, browserBasename } from '../utils/electron'
+import {
+  readTrackBytes,
+  readAudioTags,
+  writeAudioTags,
+  canWriteTags,
+  sniffImageMime,
+  sniffImageSize,
+} from '../utils/audioTags'
 
 const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
@@ -68,6 +77,15 @@ function getFileFormat(path) {
   return ext.toUpperCase()
 }
 
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 15000)
+}
+
 export default function MusicCollectionPage({
   view: initialView = 'songs',
   playlist = [],
@@ -82,6 +100,7 @@ export default function MusicCollectionPage({
   onPlayNext,
   onAddFolder,
   onAddSong,
+  onTrackUpdated,
 }) {
   const [isClosing, setIsClosing] = useState(false)
   const [view, setView] = useState(initialView)
@@ -98,8 +117,16 @@ export default function MusicCollectionPage({
   const [newPlaylistName, setNewPlaylistName] = useState('')
   const [showNewPlaylist, setShowNewPlaylist] = useState(false)
   const [trackInfo, setTrackInfo] = useState(null)
+  const [editTrack, setEditTrack] = useState(null)
+  const [editForm, setEditForm] = useState({ title: '', artist: '', album: '', genre: '', track: '', year: '' })
+  const [editCover, setEditCover] = useState({ mode: 'none', url: '' })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const scrollRef = useRef(null)
+  const editBytesRef = useRef(null)
+  const editCoverInputRef = useRef(null)
 
   const playlists = config.musicPlaylists || []
   const playCounts = config.musicPlayCounts || {}
@@ -202,6 +229,163 @@ export default function MusicCollectionPage({
       }
     }
   }, [contextMenu])
+
+  const openEditTags = async (track) => {
+    playSelect()
+    setContextMenu(null)
+    setEditTrack(track)
+    setEditLoading(true)
+    setEditSaving(false)
+    setEditError('')
+    setEditForm({ title: '', artist: '', album: '', genre: '', track: '', year: '' })
+    setEditCover({ mode: 'none', url: '' })
+    editBytesRef.current = null
+    try {
+      const bytes = await readTrackBytes(track)
+      editBytesRef.current = bytes
+      const tags = await readAudioTags(bytes, track.path)
+      setEditForm({
+        title: tags.title,
+        artist: tags.artist,
+        album: tags.album,
+        genre: tags.genre,
+        track: tags.track,
+        year: tags.year,
+      })
+      if (tags.picture) {
+        const blob = new Blob([tags.picture.data], { type: tags.picture.format || 'image/jpeg' })
+        setEditCover({
+          mode: 'existing',
+          url: URL.createObjectURL(blob),
+          data: tags.picture.data,
+          mime: tags.picture.format || 'image/jpeg',
+        })
+      }
+    } catch (e) {
+      console.error('Failed to read tags', e)
+      setEditError(e?.message || 'Failed to read tags from this file')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const onEditCoverFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const data = new Uint8Array(await file.arrayBuffer())
+      const mime = file.type || sniffImageMime(data) || 'image/jpeg'
+      setEditCover({ mode: 'new', url: URL.createObjectURL(file), data, mime })
+    } catch (err) {
+      setEditError('Failed to read the selected image')
+      console.error(err)
+    }
+  }
+
+  const saveEditTags = async () => {
+    if (!editTrack || editLoading || editSaving) return
+    const path = editTrack.path || ''
+    if (!canWriteTags(path)) {
+      setEditError('Writing tags is only supported for MP3, FLAC and OGG files')
+      return
+    }
+    setEditSaving(true)
+    setEditError('')
+    try {
+      let bytes = editBytesRef.current
+      if (!bytes) {
+        bytes = await readTrackBytes(editTrack)
+        editBytesRef.current = bytes
+      }
+
+      let cover = null
+      if (editCover.mode === 'new' || editCover.mode === 'existing') {
+        const dims = sniffImageSize(editCover.data) || { width: 0, height: 0 }
+        cover = {
+          data: editCover.data,
+          mime: editCover.mime,
+          width: dims.width,
+          height: dims.height,
+          description: 'Cover',
+        }
+      }
+
+      const blob = await writeAudioTags({ data: bytes, path, tags: editForm, cover })
+
+      // Persist the tagged bytes
+      const fs = isElectron() ? getNodeFs() : null
+      let savedToDisk = false
+      if (fs && path && fs.existsSync(path)) {
+        const ab = await blob.arrayBuffer()
+        fs.writeFileSync(path, new Uint8Array(ab))
+        savedToDisk = true
+      } else if (typeof window !== 'undefined' && window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: browserBasename(path || editTrack.name || 'track'),
+            types: [{
+              description: 'Audio file',
+              accept: { [blob.type || 'application/octet-stream']: [`.${path.split('.').pop() || 'mp3'}`] },
+            }],
+          })
+          const writable = await handle.createWritable()
+          await writable.write(blob)
+          await writable.close()
+          savedToDisk = true
+        } catch (e) {
+          if (e && (e.name === 'AbortError' || e.code === 20)) {
+            // User cancelled the save dialog — abort without changes
+            setEditSaving(false)
+            setEditTrack(null)
+            return
+          }
+          // Picker failed for another reason: fall back to a download
+          console.error('showSaveFilePicker failed, downloading instead', e)
+          downloadBlob(blob, browserBasename(path || editTrack.name || 'track'))
+          savedToDisk = true
+        }
+      } else {
+        // No File System Access API: hand the user the tagged copy
+        downloadBlob(blob, browserBasename(path || editTrack.name || 'track'))
+        savedToDisk = true
+      }
+      if (!savedToDisk) throw new Error('Could not save the file')
+
+      // Refresh display metadata from the bytes we just wrote
+      const outAb = await blob.arrayBuffer()
+      const patch = {}
+      try {
+        const fresh = await readAudioTags(outAb, path)
+        patch.name = fresh.title || editTrack.name
+        patch.artist = fresh.artist
+        patch.album = fresh.album
+        patch.genre = fresh.genre
+        patch.duration = fresh.duration || editTrack.duration
+        patch.cover = fresh.picture
+          ? URL.createObjectURL(new Blob([fresh.picture.data], { type: fresh.picture.format || 'image/jpeg' }))
+          : ''
+      } catch (e) {
+        console.warn('Could not re-parse written tags', e)
+      }
+
+      if (!fs) {
+        // Browser session: point this track at the edited bytes
+        const newUrl = URL.createObjectURL(blob)
+        patch.url = newUrl
+        patch.id = newUrl
+      }
+
+      if (onTrackUpdated) onTrackUpdated(editTrack.path, patch)
+      playSelect()
+      setEditTrack(null)
+    } catch (e) {
+      console.error('Failed to save tags', e)
+      setEditError(e?.message || 'Failed to save tags')
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   const allGenres = useMemo(() => {
     const set = new Set()
@@ -461,6 +645,9 @@ export default function MusicCollectionPage({
         <div className="music-context-separator" />
         <div className="music-context-item" onClick={() => { toggleFavorite(track.path); setContextMenu(null) }}>
           {favorites.has(track.path) ? '♥ Remove from Favorites' : '♡ Add to Favorites'}
+        </div>
+        <div className="music-context-item" onClick={() => openEditTags(track)}>
+          ✎ Edit Tags
         </div>
         <div className="music-context-item" onClick={() => { setTrackInfo(track); setContextMenu(null) }}>
           View File Info
@@ -995,6 +1182,153 @@ export default function MusicCollectionPage({
             <div className="modal-actions">
               <button className="modal-btn cancel" onClick={() => setTrackInfo(null)}>Close</button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {editTrack && createPortal(
+        <div className="modal-overlay" onClick={() => { if (!editSaving) setEditTrack(null) }}>
+          <div className="modal-content music-edit-modal" onClick={e => e.stopPropagation()}>
+            <h2>Edit Tags</h2>
+            <div className="music-edit-path" title={editTrack.path}>{editTrack.path}</div>
+
+            {editLoading ? (
+              <div className="music-edit-status">Reading tags…</div>
+            ) : (
+              <>
+                {editError && <div className="music-edit-error">{editError}</div>}
+
+                <div
+                  className="music-edit-body"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEditTags() } }}
+                >
+                  <div className="music-edit-cover-col">
+                    <div
+                      className={`music-edit-cover ${editCover.url ? 'has' : ''}`}
+                      onClick={() => { if (!editSaving) editCoverInputRef.current?.click() }}
+                      title="Click to choose cover art"
+                    >
+                      {editCover.url ? (
+                        <img src={editCover.url} alt="Cover" />
+                      ) : (
+                        <span>+ Cover</span>
+                      )}
+                    </div>
+                    <div className="music-edit-cover-actions">
+                      <button
+                        type="button"
+                        className="music-edit-cover-btn"
+                        onClick={() => editCoverInputRef.current?.click()}
+                        disabled={editSaving}
+                      >
+                        {editCover.url ? 'Replace' : 'Add Cover'}
+                      </button>
+                      {editCover.url && (
+                        <button
+                          type="button"
+                          className="music-edit-cover-btn"
+                          onClick={() => setEditCover({ mode: 'none', url: '' })}
+                          disabled={editSaving}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      ref={editCoverInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={onEditCoverFile}
+                    />
+                  </div>
+
+                  <div className="music-edit-fields">
+                    <div className="music-edit-field span">
+                      <label>Title</label>
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm(f => ({ ...f, title: e.target.value }))}
+                        disabled={editSaving}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="music-edit-field">
+                      <label>Artist</label>
+                      <input
+                        type="text"
+                        value={editForm.artist}
+                        onChange={(e) => setEditForm(f => ({ ...f, artist: e.target.value }))}
+                        disabled={editSaving}
+                      />
+                    </div>
+                    <div className="music-edit-field">
+                      <label>Album</label>
+                      <input
+                        type="text"
+                        value={editForm.album}
+                        onChange={(e) => setEditForm(f => ({ ...f, album: e.target.value }))}
+                        disabled={editSaving}
+                      />
+                    </div>
+                    <div className="music-edit-field">
+                      <label>Genre</label>
+                      <input
+                        type="text"
+                        value={editForm.genre}
+                        onChange={(e) => setEditForm(f => ({ ...f, genre: e.target.value }))}
+                        disabled={editSaving}
+                      />
+                    </div>
+                    <div className="music-edit-field">
+                      <label>Track #</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editForm.track}
+                        onChange={(e) => setEditForm(f => ({ ...f, track: e.target.value }))}
+                        disabled={editSaving}
+                      />
+                    </div>
+                    <div className="music-edit-field">
+                      <label>Year</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editForm.year}
+                        onChange={(e) => setEditForm(f => ({ ...f, year: e.target.value }))}
+                        disabled={editSaving}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {!canWriteTags(editTrack.path || '') && (
+                  <div className="music-edit-note">
+                    This format is read-only here — writing tags is supported for MP3, FLAC and OGG files.
+                  </div>
+                )}
+
+                <div className="modal-actions">
+                  <button
+                    className="modal-btn cancel"
+                    onClick={() => setEditTrack(null)}
+                    disabled={editSaving}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="modal-btn confirm"
+                    onClick={saveEditTags}
+                    disabled={editSaving || !canWriteTags(editTrack.path || '')}
+                  >
+                    {editSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

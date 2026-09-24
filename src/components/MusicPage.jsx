@@ -59,9 +59,12 @@ export default function MusicPage({ isActive }) {
     let w, h
 
     const resize = () => {
-      const rect = wrap.getBoundingClientRect()
-      w = rect.width
-      h = rect.height
+      // Layout size — unaffected by any transform-based animations
+      const pw = wrap.offsetWidth
+      const ph = wrap.offsetHeight
+      if (!pw || !ph) return
+      w = pw
+      h = ph
       canvas.width = Math.floor(w * dpr)
       canvas.height = Math.floor(h * dpr)
       canvas.style.width = w + 'px'
@@ -125,6 +128,10 @@ export default function MusicPage({ isActive }) {
     updateConfig('musicFolder', newVal)
   }, [updateConfig])
 
+  const handleTrackUpdated = useCallback((path, patch) => {
+    setPlaylist(prev => prev.map(t => (t.path === path ? { ...t, ...patch } : t)))
+  }, [setPlaylist])
+
   useEffect(() => {
     if (musicFolder && isElectron()) {
       try {
@@ -164,6 +171,53 @@ export default function MusicPage({ isActive }) {
             }
           })
           setPlaylist(tracks)
+
+          // Read tags from the head of each file so the list fills in
+          // without blocking the first paint
+          ;(async () => {
+            try {
+              const { parseBuffer } = await import('music-metadata')
+              const mimeFor = (fp) => {
+                const ext = (fp.split('.').pop() || '').toLowerCase()
+                return { mp3: 'audio/mpeg', flac: 'audio/flac', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac' }[ext] || ''
+              }
+              const enriched = await Promise.all(tracks.map(async (t) => {
+                try {
+                  const fileSize = fs.statSync(t.path).size
+                  const headLen = Math.min(fileSize, 1024 * 1024)
+                  const fd = fs.openSync(t.path, 'r')
+                  let head
+                  try {
+                    const buf = new Uint8Array(headLen)
+                    const n = fs.readSync(fd, buf, 0, headLen, 0)
+                    head = buf.subarray(0, n)
+                  } finally {
+                    fs.closeSync(fd)
+                  }
+                  const meta = await parseBuffer(head, { mimeType: mimeFor(t.path), size: fileSize })
+                  let cover = ''
+                  if (meta.common.picture?.[0]) {
+                    const pic = meta.common.picture[0]
+                    cover = URL.createObjectURL(new Blob([pic.data], { type: pic.format }))
+                  }
+                  return {
+                    ...t,
+                    name: meta.common.title || t.name,
+                    artist: meta.common.artist || '',
+                    album: meta.common.album || '',
+                    genre: meta.common.genre?.[0] || '',
+                    duration: meta.format.duration || 0,
+                    cover,
+                  }
+                } catch {
+                  return t
+                }
+              }))
+              setPlaylist(enriched)
+            } catch {
+              // music-metadata unavailable — keep the bare track list
+            }
+          })()
         }
       } catch (e) {
         console.error('Failed to read music folder', e)
@@ -195,12 +249,13 @@ export default function MusicPage({ isActive }) {
 
     const tracks = await Promise.all(files.map(async (file) => {
       const url = URL.createObjectURL(file)
-      const name = file.name.replace(/\.[^.]+$/, '')
+      let name = file.name.replace(/\.[^.]+$/, '')
       let artist = '', album = '', genre = '', duration = 0, cover = ''
 
       try {
         const { parseBlob } = await import('music-metadata')
         const meta = await parseBlob(file)
+        name = meta.common.title || name
         artist = meta.common.artist || ''
         album = meta.common.album || ''
         genre = meta.common.genre?.[0] || ''
@@ -237,12 +292,13 @@ export default function MusicPage({ isActive }) {
 
     const tracks = await Promise.all(files.map(async (file) => {
       const url = URL.createObjectURL(file)
-      const name = file.name.replace(/\.[^.]+$/, '')
+      let name = file.name.replace(/\.[^.]+$/, '')
       let artist = '', album = '', genre = '', duration = 0, cover = ''
 
       try {
         const { parseBlob } = await import('music-metadata')
         const meta = await parseBlob(file)
+        name = meta.common.title || name
         artist = meta.common.artist || ''
         album = meta.common.album || ''
         genre = meta.common.genre?.[0] || ''
@@ -485,6 +541,7 @@ export default function MusicPage({ isActive }) {
           onPlayNext={(track) => playNext(track)}
           onAddFolder={selectFolder}
           onAddSong={() => songsInputRef.current?.click()}
+          onTrackUpdated={handleTrackUpdated}
         />
       )}
 
