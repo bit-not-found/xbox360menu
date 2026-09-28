@@ -2,8 +2,10 @@ import { playHoverSound, blockHoverSound } from './hoverSound'
 
 const REPEAT_DELAY = 300
 const REPEAT_RATE = 110
-const STICK_ON = 0.5
-const STICK_OFF = 0.3
+const STICK_DEADZONE_DEFAULT = 0.35
+const STICK_DEADZONE_FLOOR = 0.25
+const STICK_DEADZONE_CEIL = 0.6
+const STICK_RELEASE_RATIO = 0.6
 const ROW_TOLERANCE = 28
 
 const BTN = {
@@ -84,8 +86,10 @@ let pendingInitialFocus = true
 let forceInitialFocus = false
 
 const prevButtonsByIndex = new Map()
-const dirRepeat = { dir: null, nextAt: 0 }
-const stick = { dir: null, engaged: false }
+const repeatState = new Map()
+const stickEngaged = new Set()
+const heldKeys = new Set()
+let stickDeadzone = STICK_DEADZONE_DEFAULT
 let lastMouse = null
 let lastControllerNavAt = 0
 
@@ -255,51 +259,47 @@ function rectCenter(el) {
 function findDirectionalTarget(items, current, dir) {
   if (!current || !items.includes(current)) return pickInitialFocus(items)
   const { x: cx, y: cy, r: cr } = rectCenter(current)
+  const horizontal = dir === 'left' || dir === 'right'
+  const sign = dir === 'left' || dir === 'up' ? -1 : 1
+
   let best = null
   let bestScore = Infinity
+  let fallback = null
+  let fallbackScore = Infinity
 
   for (const el of items) {
     if (el === current) continue
-    const { x, y } = rectCenter(el)
+    const { x, y, r } = rectCenter(el)
     const dx = x - cx
     const dy = y - cy
 
-    let primary
-    let lateral
-    let maxLateral
+    const primary = horizontal ? dx * sign : dy * sign
+    if (primary <= 2) continue
 
-    if (dir === 'left') {
-      if (dx >= -2) continue
-      primary = -dx
-      lateral = Math.abs(dy)
-      maxLateral = cr.height * 1.75
-    } else if (dir === 'right') {
-      if (dx <= 2) continue
-      primary = dx
-      lateral = Math.abs(dy)
-      maxLateral = cr.height * 1.75
-    } else if (dir === 'up') {
-      if (dy >= -2) continue
-      primary = -dy
-      lateral = Math.abs(dx)
-      maxLateral = cr.width * 1.75
-    } else {
-      if (dy <= 2) continue
-      primary = dy
-      lateral = Math.abs(dx)
-      maxLateral = cr.width * 1.75
-    }
-
+    const lateral = horizontal ? Math.abs(dy) : Math.abs(dx)
+    const maxLateral = horizontal ? cr.height * 2.5 : cr.width * 2.5
     if (lateral > maxLateral) continue
 
-    const alignedBonus = lateral <= ROW_TOLERANCE ? 0 : lateral
-    const score = primary + alignedBonus * 2.5
-    if (score < bestScore) {
-      bestScore = score
+    const cross = horizontal
+      ? Math.min(cr.bottom, r.bottom) - Math.max(cr.top, r.top)
+      : Math.min(cr.right, r.right) - Math.max(cr.left, r.left)
+    const crossSize = horizontal ? Math.min(cr.height, r.height) : Math.min(cr.width, r.width)
+    const inBand = cross > crossSize * 0.3
+
+    const bandPenalty = inBand ? 0 : Math.min(lateral, maxLateral)
+    const score = primary + bandPenalty * 2
+
+    if (fallback === null || score < fallbackScore) {
+      fallback = el
+      fallbackScore = score
+    }
+    if (inBand && score < bestScore) {
       best = el
+      bestScore = score
     }
   }
-  return best
+
+  return best || fallback
 }
 
 function pageIdOfScopeKey(key) {
@@ -355,6 +355,29 @@ function moveFocus(dir) {
 
   const next = findDirectionalTarget(items, focusedEl, dir)
   if (next && next !== focusedEl) setFocused(next)
+}
+
+function pollHeldDirection(source, dir, now) {
+  if (!dir) {
+    repeatState.delete(source)
+    return
+  }
+  const state = repeatState.get(source)
+  if (!state || state.dir !== dir) {
+    repeatState.set(source, { dir, nextAt: now + REPEAT_DELAY })
+    moveFocus(dir)
+    return
+  }
+  if (now >= state.nextAt) {
+    state.nextAt = now + REPEAT_RATE
+    moveFocus(dir)
+  }
+}
+
+function resetHeldDirections() {
+  repeatState.clear()
+  stickEngaged.clear()
+  heldKeys.clear()
 }
 
 function activateFocused() {
@@ -440,6 +463,7 @@ function handleCloseAllApps() {
 }
 
 function dirFromDpad(buttons) {
+  if (!buttons) return null
   if (buttons[BTN.DPAD_UP]) return 'up'
   if (buttons[BTN.DPAD_DOWN]) return 'down'
   if (buttons[BTN.DPAD_LEFT]) return 'left'
@@ -447,32 +471,31 @@ function dirFromDpad(buttons) {
   return null
 }
 
-function dirFromAxes(axes) {
+function dirFromAxes(axes, index) {
   if (!axes || axes.length < 2) return null
   const x = axes[0] || 0
   const y = axes[1] || 0
   const mag = Math.hypot(x, y)
-  if (stick.engaged) {
-    if (mag < STICK_OFF) {
-      stick.engaged = false
+  const releaseAt = stickDeadzone * STICK_RELEASE_RATIO
+
+  if (stickEngaged.has(index)) {
+    if (mag < releaseAt) {
+      stickEngaged.delete(index)
       return null
     }
   } else {
-    if (mag < STICK_ON) return null
-    stick.engaged = true
+    if (mag < stickDeadzone) return null
+    stickEngaged.add(index)
   }
-  if (Math.abs(x) >= Math.abs(y)) {
-    if (Math.abs(x) < 0.4) return null
+
+  const ax = Math.abs(x)
+  const ay = Math.abs(y)
+  if (ax >= ay) {
+    if (ax < releaseAt) return null
     return x < 0 ? 'left' : 'right'
   }
-  if (Math.abs(y) < 0.4) return null
+  if (ay < releaseAt) return null
   return y < 0 ? 'up' : 'down'
-}
-
-function currentDirFromPad(gp) {
-  const dir = dirFromDpad(gp.buttons)
-  if (dir) return dir
-  return dirFromAxes(gp.axes)
 }
 
 function shouldPauseForContext() {
@@ -518,22 +541,14 @@ function pollGamepads(now) {
     }
 
     if (!pause && uiMode) {
-      const dir = currentDirFromPad(gp)
-      if (dir) {
-        if (dirRepeat.dir !== dir) {
-          dirRepeat.dir = dir
-          dirRepeat.nextAt = now + REPEAT_DELAY
-          moveFocus(dir)
-        } else if (now >= dirRepeat.nextAt) {
-          dirRepeat.nextAt = now + REPEAT_RATE
-          moveFocus(dir)
-        }
-      } else {
-        dirRepeat.dir = null
-      }
+      const dpadDir = dirFromDpad(buttons)
+      const stickDir = dpadDir ? null : dirFromAxes(gp.axes, i)
+      pollHeldDirection(`dpad:${i}`, dpadDir, now)
+      pollHeldDirection(`stick:${i}`, stickDir, now)
     } else {
-      dirRepeat.dir = null
-      stick.engaged = false
+      repeatState.delete(`dpad:${i}`)
+      repeatState.delete(`stick:${i}`)
+      if (dirFromDpad(buttons)) stickEngaged.delete(i)
     }
 
     prevButtonsByIndex.set(i, buttons)
@@ -541,6 +556,31 @@ function pollGamepads(now) {
 
   for (const key of Array.from(prevButtonsByIndex.keys())) {
     if (!raw[key]) prevButtonsByIndex.delete(key)
+  }
+}
+
+const DIR_KEYS = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+}
+
+function onKeyUp(e) {
+  if (!DIR_KEYS[e.key]) return
+  heldKeys.delete(e.code)
+}
+
+function onWindowBlur() {
+  heldKeys.clear()
+}
+
+function pollKeyboardRepeat(now) {
+  if (!heldKeys.size) return
+  if (shouldPauseForContext() || !uiModeAllowsNav()) return
+  for (const code of heldKeys) {
+    const dir = DIR_KEYS[code]
+    if (dir) pollHeldDirection(`key:${code}`, dir, now)
   }
 }
 
@@ -563,15 +603,15 @@ function onKeyDown(e) {
 
   if (!uiModeAllowsNav()) return
 
-  const dirMap = {
-    ArrowUp: 'up',
-    ArrowDown: 'down',
-    ArrowLeft: 'left',
-    ArrowRight: 'right',
-  }
-  if (dirMap[e.key]) {
+  const dir = DIR_KEYS[e.key]
+  if (dir) {
     e.preventDefault()
-    moveFocus(dirMap[e.key])
+    if (!e.repeat) {
+      const now = performance.now()
+      heldKeys.add(e.code)
+      repeatState.set(`key:${e.code}`, { dir, nextAt: now + REPEAT_DELAY })
+      moveFocus(dir)
+    }
     return
   }
 
@@ -618,12 +658,15 @@ function onMouseMove(e) {
 function loop(now) {
   ensureScopeFocus()
   pollGamepads(now)
+  pollKeyboardRepeat(now)
   rafId = requestAnimationFrame(loop)
 }
 
 function bindKeyListeners() {
   if (keyListenersBound) return
   window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('keyup', onKeyUp, true)
+  window.addEventListener('blur', onWindowBlur)
   window.addEventListener('mousemove', onMouseMove, { passive: true })
   keyListenersBound = true
 }
@@ -631,6 +674,8 @@ function bindKeyListeners() {
 function unbindKeyListeners() {
   if (!keyListenersBound) return
   window.removeEventListener('keydown', onKeyDown, true)
+  window.removeEventListener('keyup', onKeyUp, true)
+  window.removeEventListener('blur', onWindowBlur)
   window.removeEventListener('mousemove', onMouseMove)
   keyListenersBound = false
 }
@@ -641,6 +686,7 @@ export function startNavEngine() {
   lastScopeKey = ''
   pendingInitialFocus = true
   forceInitialFocus = false
+  resetHeldDirections()
   bindKeyListeners()
   rafId = requestAnimationFrame(loop)
 }
@@ -653,8 +699,7 @@ export function stopNavEngine() {
   rafId = null
   setFocused(null, { silent: true })
   prevButtonsByIndex.clear()
-  dirRepeat.dir = null
-  stick.engaged = false
+  resetHeldDirections()
   lastMouse = null
   lastControllerNavAt = 0
   lastScopeKey = ''
@@ -688,6 +733,12 @@ export function registerBumperHandler(fn) {
 
 export function setNavPaused(paused) {
   explicitPause = !!paused
+}
+
+export function setNavStickDeadzone(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return
+  stickDeadzone = Math.min(STICK_DEADZONE_CEIL, Math.max(STICK_DEADZONE_FLOOR, n))
 }
 
 export function clearNavFocus() {

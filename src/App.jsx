@@ -13,7 +13,7 @@ import GuideMenu from './components/GuideMenu'
 import Taskbar from './components/Taskbar'
 import ControllerSettings from './components/ControllerSettings'
 import './App.css'
-import { ConfigProvider } from './context/ConfigContext'
+import { ConfigProvider, useConfig } from './context/ConfigContext'
 import { MusicProvider } from './context/MusicContext'
 import {
   startNavEngine,
@@ -21,6 +21,7 @@ import {
   registerBackHandler,
   registerBumperHandler,
   setNavPaused,
+  setNavStickDeadzone,
 } from './navigation/navEngine'
 
 const categories = ['home', 'social', 'media', 'games', 'music', 'apps', 'settings']
@@ -38,6 +39,7 @@ function App() {
   const [focusedAppId, setFocusedAppId] = useState(null)
   const [showGuide, setShowGuide] = useState(false)
   const [showControllerSettings, setShowControllerSettings] = useState(false)
+  const { config } = useConfig()
 
   const settingsTiles = [
     { label: 'System', icon: <img src="./assets/icons/system.png" alt="System" /> },
@@ -163,6 +165,16 @@ function App() {
     startNavEngine()
     return () => stopNavEngine()
   }, [])
+
+  useEffect(() => {
+    const deadzones = config?.controllerSettings?.deadzones
+    if (!deadzones) return
+    const player = config.controllerSettings?.playerAssignments?.findIndex(
+      (p) => p && p.type === 'gamepad'
+    )
+    const source = deadzones[player >= 0 ? player : 0]
+    setNavStickDeadzone(source?.left)
+  }, [config])
 
   useEffect(() => {
     setNavPaused(showIntro)
