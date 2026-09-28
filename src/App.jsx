@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { getIpcRenderer } from './utils/electron'
 import Tile from './components/Tile'
 import IntroVideo from './components/IntroVideo'
@@ -15,6 +15,13 @@ import ControllerSettings from './components/ControllerSettings'
 import './App.css'
 import { ConfigProvider } from './context/ConfigContext'
 import { MusicProvider } from './context/MusicContext'
+import {
+  startNavEngine,
+  stopNavEngine,
+  registerBackHandler,
+  registerBumperHandler,
+  setNavPaused,
+} from './navigation/navEngine'
 
 const categories = ['home', 'social', 'media', 'games', 'music', 'apps', 'settings']
 
@@ -141,6 +148,62 @@ function App() {
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
   }, [toggleGuide, closeGuide, minimizeApp, closeApp, closeAllApps, showGuide, focusedAppId])
+
+  const focusedAppIdRef = useRef(focusedAppId)
+  const minimizeAppRef = useRef(minimizeApp)
+  const activeCategoryRef = useRef(activeCategory)
+  const handleCategoryChangeRef = useRef(handleCategoryChange)
+
+  useEffect(() => { focusedAppIdRef.current = focusedAppId }, [focusedAppId])
+  useEffect(() => { minimizeAppRef.current = minimizeApp }, [minimizeApp])
+  useEffect(() => { activeCategoryRef.current = activeCategory }, [activeCategory])
+  useEffect(() => { handleCategoryChangeRef.current = handleCategoryChange }, [handleCategoryChange])
+
+  useEffect(() => {
+    startNavEngine()
+    return () => stopNavEngine()
+  }, [])
+
+  useEffect(() => {
+    setNavPaused(showIntro)
+  }, [showIntro])
+
+  useEffect(() => {
+    return registerBumperHandler((delta) => {
+      const prev = activeCategoryRef.current
+      const next = Math.min(categories.length - 1, Math.max(0, prev + delta))
+      if (next === prev) return
+      handleCategoryChangeRef.current(next)
+    })
+  }, [])
+
+  useEffect(() => {
+    return registerBackHandler(() => {
+      if (focusedAppIdRef.current) minimizeAppRef.current()
+    })
+  }, [])
+
+  useEffect(() => {
+    const onGuideToggle = () => toggleGuide()
+    const onCloseFocusedApp = () => {
+      if (focusedAppIdRef.current) {
+        closeApp(focusedAppIdRef.current)
+        setShowGuide(false)
+      }
+    }
+    const onCloseAllApps = () => {
+      closeAllApps()
+      setShowGuide(false)
+    }
+    window.addEventListener('nav-guide-toggle', onGuideToggle)
+    window.addEventListener('nav-close-focused-app', onCloseFocusedApp)
+    window.addEventListener('nav-close-all-apps', onCloseAllApps)
+    return () => {
+      window.removeEventListener('nav-guide-toggle', onGuideToggle)
+      window.removeEventListener('nav-close-focused-app', onCloseFocusedApp)
+      window.removeEventListener('nav-close-all-apps', onCloseAllApps)
+    }
+  }, [toggleGuide, closeApp, closeAllApps])
 
   return (
     <div className={`dashboard ${isSliding ? 'sliding' : ''} ${entranceAnimation ? 'animate-entrance' : ''}`}>

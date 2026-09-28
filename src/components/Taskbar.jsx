@@ -1,10 +1,10 @@
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
+import { playHoverSound } from '../navigation/hoverSound'
+
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
 export default function Taskbar({ apps, focusedAppId, onFocusApp, onCloseApp }) {
   const playHover = () => {
-    hoverAudio.currentTime = 0
-    hoverAudio.play().catch(() => {})
+    playHoverSound()
   }
 
   const playSelect = () => {

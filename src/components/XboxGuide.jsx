@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfig } from '../context/ConfigContext'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
+import { playHoverSound } from '../navigation/hoverSound'
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 const pageLeftAudio = new Audio('./assets/audio/Page Left.mp3')
@@ -60,8 +60,7 @@ export default function XboxGuide({ onClose, onQuitToDashboard, activeCategory, 
 
   const playHover = () => {
     if (!soundFx) return
-    hoverAudio.currentTime = 0
-    hoverAudio.play().catch(() => {})
+    playHoverSound()
   }
 
   const playSelect = () => {

@@ -1,13 +1,12 @@
 import React from 'react';
+import { playHoverSound } from '../navigation/hoverSound';
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3');
 const selectAudio = new Audio('./assets/audio/Select.mp3');
 
 export default function Tile({ size, icon, label, className = '', style, children, onClick, onContextMenu, disabled = false }) {
   const handleMouseEnter = () => {
     if (disabled) return;
-    hoverAudio.currentTime = 0;
-    hoverAudio.play().catch(() => { });
+    playHoverSound();
   };
 
   const handleClick = () => {

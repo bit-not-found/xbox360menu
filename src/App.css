@@ -2292,7 +2292,8 @@
   transition: opacity 0.15s, color 0.15s;
   flex-shrink: 0;
 }
-.g360-list-item:hover .g360-item-close {
+.g360-list-item:hover .g360-item-close,
+.g360-list-item.nav-focused .g360-item-close {
   opacity: 1;
 }
 .g360-item-close:hover {
@@ -2451,7 +2452,8 @@
   transition: opacity 0.15s, color 0.15s;
 }
 
-.taskbar-app:hover .taskbar-app-close {
+.taskbar-app:hover .taskbar-app-close,
+.taskbar-app.nav-focused .taskbar-app-close {
   opacity: 1;
 }
 
@@ -2875,7 +2877,8 @@ body > canvas#canvas {
   padding: 0;
 }
 
-.collection-card:hover .collection-card-fav {
+.collection-card:hover .collection-card-fav,
+.collection-card.nav-focused .collection-card-fav {
   opacity: 1;
 }
 
@@ -2913,7 +2916,8 @@ body > canvas#canvas {
   padding: 0;
 }
 
-.collection-card:hover .collection-card-delete {
+.collection-card:hover .collection-card-delete,
+.collection-card.nav-focused .collection-card-delete {
   opacity: 1;
 }
 
@@ -4750,4 +4754,205 @@ body > canvas#canvas {
   color: #107c10;
   font-weight: 600;
 }
+
+/* ===== NAV ENGINE FOCUS (gamepad / keyboard D-pad) ===== */
+.tile.nav-focused::after {
+  opacity: 1;
+}
+
+.tile.nav-focused {
+  transform: scale(1.05);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+
+.nav-item.nav-focused {
+  opacity: 0.8;
+}
+
+.nav-item.active.nav-focused {
+  opacity: 1;
+}
+
+.g360-list-item.nav-focused {
+  background: #107c10 !important;
+  border-left-color: #107c10;
+}
+
+.g360-list-item.nav-focused .g360-item-name {
+  color: #fff;
+  font-weight: 600;
+}
+
+.g360-list-item.nav-focused .g360-item-arrow {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.g360-list-item.nav-focused .g360-item-stars {
+  color: #fff;
+}
+
+.g360-list-item.nav-focused .g360-item-dot {
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.g360-quit-item.nav-focused {
+  background: #c42b2b !important;
+}
+
+.g360-tab.nav-focused {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.g360-tab.nav-focused .g360-tab-label {
+  color: #107c10;
+  font-weight: 600;
+}
+
+.taskbar-app.nav-focused {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.taskbar-app.nav-focused .taskbar-app-close {
+  opacity: 1;
+}
+
+.collection-chip.nav-focused {
+  border-color: #555;
+  color: #333;
+}
+
+.collection-chip.active.nav-focused {
+  background: #333;
+  border-color: #333;
+  color: #fff;
+}
+
+.collection-card.nav-focused {
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  outline: 3px solid #107c10;
+  outline-offset: 2px;
+}
+
+.collection-card.nav-focused .collection-card-fav,
+.collection-card.nav-focused .collection-card-delete {
+  opacity: 1;
+}
+
+.collection-close.nav-focused {
+  color: #111;
+}
+
+.fs-nav-item.nav-focused {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+}
+
+.fs-nav-item.active.nav-focused {
+  background: rgba(16, 124, 16, 0.25);
+  color: #4ade80;
+}
+
+.fs-settings-item.nav-focused {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+}
+
+.fs-close-btn.nav-focused,
+.fs-collapse-btn.nav-focused,
+.fs-settings-close.nav-focused,
+.fs-sidebar-expand.nav-focused,
+.fs-ctrl-btn.nav-focused {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.fs-play-btn.nav-focused {
+  background: rgba(16, 124, 16, 1);
+}
+
+.visualizer-ctrl-btn.nav-focused {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  transform: scale(1.08);
+}
+
+.visualizer-preset-item.nav-focused {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.music-btn.nav-focused {
+  transform: scale(1.1);
+  color: #ddd;
+}
+
+.music-track-row.nav-focused {
+  background: rgba(0, 0, 0, 0.06);
+  outline: 2px solid #107c10;
+  outline-offset: -2px;
+}
+
+.music-artist-card.nav-focused,
+.music-album-card.nav-focused,
+.music-playlist-card.nav-focused {
+  transform: scale(1.04);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  outline: 3px solid #107c10;
+  outline-offset: 2px;
+}
+
+.music-genre-card.nav-focused {
+  transform: scale(1.03);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  outline: 2px solid #107c10;
+  outline-offset: 2px;
+}
+
+.music-playlist-create-card.nav-focused {
+  border-color: #107c10;
+  background: rgba(16, 124, 16, 0.05);
+}
+
+.music-back-btn.nav-focused {
+  border-color: #333;
+  color: #222;
+}
+
+.music-action-btn.nav-focused,
+.modal-btn.nav-focused,
+.controller-assignment-btn.nav-focused,
+.controller-preset-btn.nav-focused,
+.controller-remap-btn.nav-focused,
+.controller-remap-reset.nav-focused,
+.controller-rumble-btn.nav-focused,
+.controller-close.nav-focused,
+.controller-remap-modal-cancel.nav-focused,
+.video-player-close.nav-focused,
+.media-nav-btn.nav-focused {
+  outline: 2px solid #107c10;
+  outline-offset: 2px;
+}
+
+.collection-dropdown.nav-focused {
+  border-color: #108710;
+  outline: none;
+}
+
+.modal-content input[type="text"].nav-focused {
+  border-color: #108710;
+  outline: none;
+}
+
+button.nav-focused:focus,
+input.nav-focused:focus,
+select.nav-focused:focus {
+  outline: 2px solid #107c10;
+  outline-offset: 2px;
+}
+
 

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getNodeFs, browserBasename } from '../utils/electron'
+import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { playHoverSound } from '../navigation/hoverSound'
 import {
   readTrackBytes,
   readAudioTags,
@@ -12,11 +14,10 @@ import {
   sniffImageSize,
 } from '../utils/audioTags'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
-const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(() => {}) }
+const playHover = () => { playHoverSound() }
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 
@@ -195,6 +196,35 @@ export default function MusicCollectionPage({
     setIsClosing(true)
     setTimeout(() => onClose(), 300)
   }
+
+  const rootRef = useRef(null)
+  const handleCloseRef = useRef(handleClose)
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
+
+  useEffect(() => {
+    return registerBumperHandler((delta) => {
+      const chipNodes = rootRef.current
+        ? rootRef.current.querySelectorAll('.collection-chips .collection-chip')
+        : []
+      if (!chipNodes.length) return
+      const list = Array.from(chipNodes)
+      let idx = list.findIndex(c => c.classList.contains('active'))
+      if (idx < 0) idx = 0
+      const next = (idx + delta + list.length) % list.length
+      playSelect()
+      list[next].click()
+      clearNavFocus()
+    })
+  }, [])
 
   const getCoverUrl = (track) => {
     if (!track) return ''
@@ -998,7 +1028,7 @@ export default function MusicCollectionPage({
   }[view] || 'My Music'
 
   return createPortal(
-    <div className={`collection-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={rootRef} className={`collection-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className="collection-container" onClick={e => e.stopPropagation()}>
         <div className="collection-topbar">
           <div className="collection-filters">

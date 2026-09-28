@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useMusic } from '../context/MusicContext'
 import visualizers from './visualizers/index.js'
+import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { playHoverSound } from '../navigation/hoverSound'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
-const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(() => {}) }
+const playHover = () => { playHoverSound() }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 
@@ -71,6 +72,52 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
     setTimeout(() => onClose(), 300)
   }, [onClose])
 
+  const handleCloseRef = useRef(handleClose)
+  const showSettingsRef = useRef(showSettings)
+  const activeNavRef = useRef(activeNav)
+  const vizModeRef = useRef(vizMode)
+  const handleNavClickRef = useRef(() => {})
+  const contentRootRef = useRef(null)
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    showSettingsRef.current = showSettings
+  }, [showSettings])
+
+  useEffect(() => {
+    activeNavRef.current = activeNav
+  }, [activeNav])
+
+  useEffect(() => {
+    vizModeRef.current = vizMode
+  }, [vizMode])
+
+  useEffect(() => {
+    const el = contentRootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
+
+  useEffect(() => {
+    return registerBumperHandler((delta) => {
+      if (showSettingsRef.current) {
+        const idx = visualizers.findIndex(v => v.id === vizModeRef.current)
+        const next = (idx + delta + visualizers.length) % visualizers.length
+        playSelect()
+        setVizMode(visualizers[next].id)
+        clearNavFocus()
+        return
+      }
+      const idx = NAV_ITEMS.findIndex(n => n.id === activeNavRef.current)
+      const next = (idx + delta + NAV_ITEMS.length) % NAV_ITEMS.length
+      handleNavClickRef.current(NAV_ITEMS[next].id)
+      clearNavFocus()
+    })
+  }, [])
+
   const handleNavClick = useCallback((id) => {
     playSelect()
     setActiveNav(id)
@@ -82,6 +129,10 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
       if (onNavigate) onNavigate(id)
     }
   }, [onNavigate])
+
+  useEffect(() => {
+    handleNavClickRef.current = handleNavClick
+  }, [handleNavClick])
 
   // Visualizer rendering
   useEffect(() => {
@@ -143,7 +194,7 @@ export default function FullscreenPlayer({ onClose, isActive, onNavigate, custom
   }, [vizMode, getAudioContext, getAnalyser, connectAudioSource])
 
   const content = (
-    <div className={`fs-player ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={contentRootRef} className={`fs-player ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className="fs-player-container" onClick={e => e.stopPropagation()}>
 
         {/* Visualizer canvas - full background */}

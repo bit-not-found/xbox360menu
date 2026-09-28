@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useGamepad } from '../hooks/useGamepad'
 import { useConfig } from '../context/ConfigContext'
+import { registerBackHandler } from '../navigation/navEngine'
+import { playHoverSound } from '../navigation/hoverSound'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
-const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(() => {}) }
+const playHover = () => { playHoverSound() }
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 
@@ -124,6 +125,19 @@ export default function ControllerSettings({ onClose, isActive }) {
     setIsClosing(true)
     setTimeout(() => onClose(), 300)
   }, [onClose])
+
+  const rootRef = useRef(null)
+  const handleCloseRef = useRef(handleClose)
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
 
   useEffect(() => {
     if (!isActive) {
@@ -309,7 +323,7 @@ export default function ControllerSettings({ onClose, isActive }) {
   }
 
   return createPortal(
-    <div className={`controller-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={rootRef} className={`controller-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className="controller-container" onClick={e => e.stopPropagation()}>
         <div className="controller-topbar">
           <h2 className="controller-title">Controller Settings</h2>

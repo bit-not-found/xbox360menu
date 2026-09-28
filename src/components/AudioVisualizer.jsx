@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useMusic } from '../context/MusicContext'
+import { registerBackHandler } from '../navigation/navEngine'
 
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
@@ -68,6 +69,19 @@ export default function AudioVisualizer({ onClose, isActive }) {
     setIsClosing(true)
     setTimeout(() => onClose(), 300)
   }
+
+  const rootRef = useRef(null)
+  const handleCloseRef = useRef(handleClose)
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
 
   // Load butterchurn lazily
   useEffect(() => {
@@ -195,7 +209,7 @@ export default function AudioVisualizer({ onClose, isActive }) {
   }, [presetList])
 
   const content = (
-    <div className={`visualizer-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={rootRef} className={`visualizer-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className="visualizer-container" onClick={e => e.stopPropagation()}>
         <div className="visualizer-canvas-wrap">
           <canvas ref={canvasRef} className="visualizer-canvas" />

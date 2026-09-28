@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfig } from '../context/ConfigContext'
+import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { playHoverSound } from '../navigation/hoverSound'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
@@ -37,6 +38,9 @@ export default function GuideMenu({ onClose, onNavigate, openApps, focusedAppId,
   const [isClosing, setIsClosing] = useState(false)
   const [activeTab, setActiveTab] = useState('home')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const rootRef = useRef(null)
+  const handleCloseRef = useRef(null)
+  const activeTabRef = useRef(activeTab)
 
   const allGames = config?.myGames || []
   const pinnedGames = allGames.filter(g => g.isPinned)
@@ -52,9 +56,34 @@ export default function GuideMenu({ onClose, onNavigate, openApps, focusedAppId,
     setTimeout(() => onClose(), 300)
   }, [onClose])
 
+  useEffect(() => {
+    activeTabRef.current = activeTab
+  }, [activeTab])
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
+
+  useEffect(() => {
+    return registerBumperHandler((delta) => {
+      const idx = tabs.findIndex(t => t.id === activeTabRef.current)
+      const next = (idx + delta + tabs.length) % tabs.length
+      selectAudio.currentTime = 0
+      selectAudio.play().catch(() => {})
+      setActiveTab(tabs[next].id)
+      setSelectedIndex(0)
+      clearNavFocus()
+    })
+  }, [])
+
   const playHover = () => {
-    hoverAudio.currentTime = 0
-    hoverAudio.play().catch(() => {})
+    playHoverSound()
   }
 
   const playSelect = () => {
@@ -66,6 +95,7 @@ export default function GuideMenu({ onClose, onNavigate, openApps, focusedAppId,
     playSelect()
     setActiveTab(tab.id)
     setSelectedIndex(0)
+    clearNavFocus()
   }
 
   const handleNavItemClick = (item) => {
@@ -324,7 +354,7 @@ export default function GuideMenu({ onClose, onNavigate, openApps, focusedAppId,
   }
 
   return createPortal(
-    <div className={`g360-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={rootRef} className={`g360-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className={`g360-blade ${isClosing ? 'g360-blade-closing' : ''}`} onClick={e => e.stopPropagation()}>
         <div className="g360-header">
           <div className="g360-header-left">

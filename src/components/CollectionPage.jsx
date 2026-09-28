@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { playHoverSound } from '../navigation/hoverSound'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
-const playHover = () => { hoverAudio.currentTime = 0; hoverAudio.play().catch(() => {}) }
+const playHover = () => { playHoverSound() }
 const playBack = () => { backAudio.currentTime = 0; backAudio.play().catch(() => {}) }
 const playSelect = () => { selectAudio.currentTime = 0; selectAudio.play().catch(() => {}) }
 
@@ -267,6 +268,35 @@ export default function CollectionPage({
     setTimeout(() => onClose(), 300)
   }
 
+  const rootRef = useRef(null)
+  const handleCloseRef = useRef(handleClose)
+
+  useEffect(() => {
+    handleCloseRef.current = handleClose
+  }, [handleClose])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return undefined
+    return registerBackHandler(el, () => handleCloseRef.current())
+  }, [])
+
+  useEffect(() => {
+    return registerBumperHandler((delta) => {
+      const chipNodes = rootRef.current
+        ? rootRef.current.querySelectorAll('.collection-chips .collection-chip')
+        : []
+      if (!chipNodes.length) return
+      const list = Array.from(chipNodes)
+      let idx = list.findIndex(c => c.classList.contains('active'))
+      if (idx < 0) idx = 0
+      const next = (idx + delta + list.length) % list.length
+      playSelect()
+      list[next].click()
+      clearNavFocus()
+    })
+  }, [])
+
   const handleItemAction = (item) => {
     playSelect()
     if (onItemAction) onItemAction(item)
@@ -279,7 +309,7 @@ export default function CollectionPage({
   }
 
   return createPortal(
-    <div className={`collection-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+    <div ref={rootRef} className={`collection-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
       <div className="collection-container" onClick={e => e.stopPropagation()}>
         {/* Top bar */}
         <div className="collection-topbar">

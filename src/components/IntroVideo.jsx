@@ -35,7 +35,7 @@ export default function IntroVideo({ onFinished }) {
   }, [])
 
   return (
-    <div style={{
+    <div className="intro-overlay" style={{
       position: 'fixed',
       top: 0,
       left: 0,

@@ -5,8 +5,8 @@ import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, getNodeChildProcess } from '../utils/electron'
 import { saveRomFile, loadRomFile } from '../utils/romCache'
+import { playHoverSound } from '../navigation/hoverSound'
 
-const hoverAudio = new Audio('./assets/audio/hover.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
 
 const ROM_EXTENSIONS = /\.(nes|sfc|smc|gba|gb|gbc|gen|md|sms|gg|pce|ngp|ngpc|ws|wsc|lnx|jag|vb|col|sg)$/i
@@ -417,8 +417,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
   }
 
   const handleCardHover = () => {
-    hoverAudio.currentTime = 0
-    hoverAudio.play().catch(() => {})
+    playHoverSound()
   }
 
   const closeMyGames = () => {
