@@ -25,7 +25,7 @@ function SlideLayer({ game, state }) {
 }
 
 export default function GameSlideshowTile({ games, isActive = true, onSelect }) {
-  const slides = useMemo(() => (games || []).filter(g => g && (g.banner || g.icon)), [games])
+  const slides = useMemo(() => (games || []).filter(g => g && g.name), [games])
   const [index, setIndex] = useState(0)
   const [outIndex, setOutIndex] = useState(null)
   const [hovered, setHovered] = useState(false)

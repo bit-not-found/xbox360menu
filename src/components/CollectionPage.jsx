@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
 import { playHoverSound } from '../navigation/hoverSound'
+import { toggleFavorite, useFavorites } from '../utils/favorites'
+import { handleArtworkError } from '../utils/artwork'
 
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -48,16 +50,6 @@ const SORT_OPTIONS = [
   { id: 'name', label: 'Name A-Z' },
 ]
 
-function loadFavorites() {
-  try {
-    return JSON.parse(localStorage.getItem('winx360_favorites') || '[]')
-  } catch { return [] }
-}
-
-function saveFavorites(ids) {
-  try { localStorage.setItem('winx360_favorites', JSON.stringify(ids)) } catch { /* noop */ }
-}
-
 export default function CollectionPage({
   title,
   items = [],
@@ -70,38 +62,50 @@ export default function CollectionPage({
   renderItem,
   isActive = true,
   mode = 'media',
-  onAddItem,
+onAddItem,
   onAddItem2,
   onDeleteItem,
   systems = [],
+  filterGroups = null,
+  sortOptions: sortOptionsProp = null,
+  variant = 'default',
+  showSearch = false,
+  searchPlaceholder = 'Search...',
+  onToggleFavorite = null,
 }) {
   const [isClosing, setIsClosing] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('all')
-  const [gameFilter, setGameFilter] = useState('')
+  const [gameFilter, setGameFilter] = useState('')          // reused as "Folder"/"Search"
   const [dateRange, setDateRange] = useState('all')
   const [sortBy, setSortBy] = useState('newest')
-  const [favorites, setFavorites] = useState(() => new Set(loadFavorites()))
+  const favorites = useFavorites()
+  const favoritesSet = useMemo(() => new Set(favorites.map(entry => entry.id)), [favorites])
   const [confirmDelete, setConfirmDelete] = useState(null)
+
+  const isAppsVariant = variant === 'apps'
+
+  const isItemFavorite = useCallback(
+    (item) => (item.isFavoriteRef !== undefined ? !!item.isFavoriteRef : favoritesSet.has(item.id)),
+    [favoritesSet]
+  )
 
   const chips = mode === 'games' ? GAME_CHIPS : mode === 'music' ? MUSIC_CHIPS : MEDIA_CHIPS
 
-  const sortOptions = mode === 'music' ? MUSIC_SORT_OPTIONS : SORT_OPTIONS
+  const sortOptions = sortOptionsProp || (mode === 'music' ? MUSIC_SORT_OPTIONS : SORT_OPTIONS)
+
+  const chipList = useMemo(() => {
+    if (!filterGroups) return chips.map(chip => ({ ...chip, test: null, always: true }))
+    return filterGroups.map(group => ({ ...group, always: !!group.always }))
+  }, [filterGroups, chips])
 
   const [systemFilter, setSystemFilter] = useState('')
 
-  // Persist favorites
-  useEffect(() => { saveFavorites([...favorites]) }, [favorites])
-
-  const toggleFavorite = useCallback((itemId, e) => {
+  const toggleItemFavorite = useCallback((item, e) => {
     e.stopPropagation()
     playSelect()
-    setFavorites(prev => {
-      const next = new Set(prev)
-      if (next.has(itemId)) next.delete(itemId)
-      else next.add(itemId)
-      return next
-    })
-  }, [])
+    if (onToggleFavorite) onToggleFavorite(item, !isItemFavorite(item))
+    else toggleFavorite(item.id)
+  }, [isItemFavorite, onToggleFavorite])
 
   // Derive unique game names from items
   const games = useMemo(() => {
@@ -118,30 +122,38 @@ export default function CollectionPage({
 
   // Compute counts for each category
   const counts = useMemo(() => {
+    if (filterGroups) {
+      const result = { all: items.length }
+      filterGroups.forEach(group => {
+        if (group.id === 'all' || !group.test) return
+        result[group.id] = items.filter(group.test).length
+      })
+      return result
+    }
     if (mode === 'games') {
       return {
         all: items.length,
         executables: items.filter(i => i.exe && !i.isRom).length,
         roms: items.filter(i => i.isRom).length,
         pinned: items.filter(i => i.isPinned).length,
-        favorites: items.filter(i => favorites.has(i.id)).length,
+        favorites: items.filter(isItemFavorite).length,
       }
     }
     if (mode === 'music') {
       return {
         all: items.length,
         pinned: items.filter(i => i.isPinned).length,
-        favorites: items.filter(i => favorites.has(i.id)).length,
+        favorites: items.filter(isItemFavorite).length,
       }
     }
     return {
       all: items.length,
       clips: items.filter(i => i.isVideo).length,
       screenshots: items.filter(i => i.isImage).length,
-      favorites: items.filter(i => favorites.has(i.id)).length,
+      favorites: items.filter(isItemFavorite).length,
       local: items.filter(i => i.source !== 'xbox').length,
     }
-  }, [items, favorites, mode])
+  }, [items, isItemFavorite, filterGroups, mode])
 
   // Stable timestamp for date filtering
   const [now] = useState(() => Date.now())
@@ -154,7 +166,10 @@ export default function CollectionPage({
     let result = [...items]
 
     // Category filter
-    if (mode === 'games') {
+    const activeGroup = filterGroups?.find(group => group.id === categoryFilter)
+    if (activeGroup) {
+      if (activeGroup.test) result = result.filter(activeGroup.test)
+    } else if (mode === 'games') {
       switch (categoryFilter) {
         case 'executables':
           result = result.filter(i => i.exe && !i.isRom)
@@ -166,7 +181,7 @@ export default function CollectionPage({
           result = result.filter(i => i.isPinned)
           break
         case 'favorites':
-          result = result.filter(i => favorites.has(i.id))
+          result = result.filter(isItemFavorite)
           break
       }
     } else if (mode === 'music') {
@@ -175,7 +190,7 @@ export default function CollectionPage({
           result = result.filter(i => i.isPinned)
           break
         case 'favorites':
-          result = result.filter(i => favorites.has(i.id))
+          result = result.filter(isItemFavorite)
           break
       }
     } else {
@@ -187,7 +202,7 @@ export default function CollectionPage({
           result = result.filter(i => i.isImage)
           break
         case 'favorites':
-          result = result.filter(i => favorites.has(i.id))
+          result = result.filter(isItemFavorite)
           break
         case 'local':
           result = result.filter(i => i.source !== 'xbox')
@@ -202,10 +217,10 @@ export default function CollectionPage({
 
     // Game/artist filter
     if (gameFilter) {
-      result = result.filter(i => {
-        const name = i.game || i.name || ''
-        return name.toLowerCase().includes(gameFilter.toLowerCase())
-      })
+      const needle = gameFilter.toLowerCase()
+      result = result.filter(i => [i.name, i.artist, i.album, i.game]
+        .filter(Boolean)
+        .some(field => field.toLowerCase().includes(needle)))
     }
 
     // Date range filter
@@ -239,10 +254,13 @@ export default function CollectionPage({
       case 'duration':
         result.sort((a, b) => (a.duration || 0) - (b.duration || 0))
         break
+      case 'type':
+        result.sort((a, b) => (a.kindLabel || '').localeCompare(b.kindLabel || '') || (a.name || '').localeCompare(b.name || ''))
+        break
     }
 
     return result
-  }, [items, categoryFilter, gameFilter, dateCutoff, sortBy, favorites, mode, systemFilter])
+  }, [items, categoryFilter, gameFilter, dateCutoff, sortBy, isItemFavorite, filterGroups, mode, systemFilter])
 
   // Close when parent page becomes inactive
   useEffect(() => {
@@ -316,14 +334,16 @@ export default function CollectionPage({
           <div className="collection-filters">
             {/* Primary filter chips */}
             <div className="collection-chips">
-              {chips.map(chip => (
+              {chipList
+                .filter(chip => chip.always || !filterGroups || categoryFilter === chip.id || (counts[chip.id] || 0) > 0)
+                .map(chip => (
                 <button
                   key={chip.id}
                   className={`collection-chip ${categoryFilter === chip.id ? 'active' : ''}`}
                   onClick={() => { playSelect(); setCategoryFilter(chip.id) }}
                 >
                   {chip.label}
-                  <span className="collection-chip-count">{counts[chip.id]}</span>
+                  <span className="collection-chip-count">{counts[chip.id] || 0}</span>
                 </button>
               ))}
               {mode === 'games' && onAddItem && (
@@ -358,7 +378,7 @@ export default function CollectionPage({
                   + Add Photos
                 </button>
               )}
-              {mode === 'media' && counts.favorites > 0 && (
+              {mode === 'media' && !filterGroups && counts.favorites > 0 && (
                 <button
                   className={`collection-chip ${categoryFilter === 'favorites' ? 'active' : ''}`}
                   onClick={() => { playSelect(); setCategoryFilter(categoryFilter === 'favorites' ? 'all' : 'favorites') }}
@@ -392,13 +412,13 @@ export default function CollectionPage({
                 ))}
               </select>
             </div>
-          ) : mode === 'music' ? (
+          ) : mode === 'music' || showSearch ? (
             <div className="collection-dropdown-group">
               <label className="collection-dropdown-label">Search</label>
               <input
                 type="text"
                 className="collection-dropdown"
-                placeholder="Search by name, artist, album..."
+                placeholder={searchPlaceholder}
                 value={gameFilter}
                 onChange={(e) => setGameFilter(e.target.value)}
                 style={{ minWidth: 200 }}
@@ -457,13 +477,25 @@ export default function CollectionPage({
             filteredItems.map((item, i) => (
               <div
                 key={item.id || item.name || i}
-                className="collection-card"
+                className={`collection-card ${isAppsVariant ? 'collection-card-app' : ''}`}
                 onMouseEnter={playHover}
                 onClick={() => handleItemAction(item)}
               >
                 <div className="collection-card-img">
                   {renderItem ? renderItem(item) : (
-                    item.icon ? <img src={item.icon} alt={item.name} decoding="async" loading="lazy" /> : <div className="collection-card-placeholder" />
+                    item.icon ? (
+                      <img
+                        src={item.icon}
+                        alt={item.name}
+                        className={isAppsVariant ? 'app-cover-img' : ''}
+                        decoding="async"
+                        loading="lazy"
+                        onError={isAppsVariant ? handleArtworkError : undefined}
+                      />
+                    ) : <div className="collection-card-placeholder" />
+                  )}
+                  {isAppsVariant && item.kindLabel && (
+                    <span className="collection-card-kind">{item.kindLabel}</span>
                   )}
                   {onDeleteItem && (
                     <button
@@ -494,15 +526,18 @@ export default function CollectionPage({
                     </button>
                   )}
                   <button
-                    className={`collection-card-fav ${favorites.has(item.id) ? 'active' : ''}`}
-                    onClick={(e) => toggleFavorite(item.id, e)}
-                    title={favorites.has(item.id) ? 'Remove from favorites' : 'Add to favorites'}
+                    className={`collection-card-fav ${isItemFavorite(item) ? 'active' : ''}`}
+                    onClick={(e) => toggleItemFavorite(item, e)}
+                    title={isItemFavorite(item) ? 'Remove from favorites' : 'Add to favorites'}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill={favorites.has(item.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill={isItemFavorite(item) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
                       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                     </svg>
                   </button>
                 </div>
+                {isAppsVariant ? (
+                  <div className="collection-card-app-name">{item.name || ''}</div>
+                ) : (
                 <div className="collection-card-bottom">
                   <span className="collection-card-name">{item.name || ''}</span>
                   {onEditItem && (
@@ -529,6 +564,7 @@ export default function CollectionPage({
                     </button>
                   )}
                 </div>
+                )}
               </div>
             ))
           )}

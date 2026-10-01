@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import { useConfig } from '../context/ConfigContext'
+import { publishLibrary } from '../utils/library'
 
 const defaultApps = [
   { name: 'YouTube', url: 'https://www.youtube.com', img: './assets/imgs/youtube.png' },
@@ -35,6 +36,11 @@ export default function AppsPage({ isActive }) {
       setEditingAppName(null)
     }
   }, [isActive])
+
+  // Share the app library so other pages (e.g. Home "My Pins") can reach these apps
+  useEffect(() => {
+    publishLibrary('apps', apps || [])
+  }, [apps])
 
   const handleOpenApp = (url) => {
     if (url.toLowerCase().startsWith('http://') || url.toLowerCase().startsWith('https://')) {

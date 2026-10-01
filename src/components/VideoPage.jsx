@@ -4,6 +4,7 @@ import Tile from './Tile'
 import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath } from '../utils/electron'
+import { publishLibrary } from '../utils/library'
 
 const MEDIA_EXT = /\.(mp4|mkv|webm|avi|mov|jpg|jpeg|png|gif|bmp|webp)$/i
 const VIDEO_EXT = /\.(mp4|mkv|webm|avi|mov)$/i
@@ -103,6 +104,22 @@ export default function VideoPage({ isActive }) {
     setActiveTileIndex(tileIndex)
     setShowPlayer(true)
   }
+
+  // Share the media library so other pages (e.g. Home "My Pins") can reach these items
+  useEffect(() => {
+    publishLibrary('media', videos)
+  }, [videos])
+
+  useEffect(() => {
+    const openFromPin = (e) => {
+      const path = e.detail?.path
+      if (!path) return
+      const item = videos.find(v => v.path === path)
+      if (item) openVideo(item)
+    }
+    window.addEventListener('winx360:open-media', openFromPin)
+    return () => window.removeEventListener('winx360:open-media', openFromPin)
+  }, [videos])
 
   const navigateMedia = (direction, e) => {
     if (e) e.stopPropagation()

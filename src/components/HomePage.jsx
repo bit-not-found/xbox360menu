@@ -6,6 +6,16 @@ import GameSlideshowTile from './GameSlideshowTile'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getNodeFs } from '../utils/electron'
 import { loadRomFile } from '../utils/romCache'
+import { useFavorites, setFavorite } from '../utils/favorites'
+import { useLibrary } from '../utils/library'
+import { PLACEHOLDER_ART, handleArtworkError } from '../utils/artwork'
+
+const PINS_SORT_OPTIONS = [
+  { id: 'newest', label: 'Recently pinned' },
+  { id: 'oldest', label: 'Oldest pinned' },
+  { id: 'type', label: 'Type' },
+  { id: 'name', label: 'Name A-Z' },
+]
 
 const SYSTEM_CORE_MAP = {
   nes: 'fceumm', sfc: 'snes9x', smc: 'snes9x', gba: 'mgba', gb: 'mgba', gbc: 'mgba',
@@ -184,6 +194,190 @@ export default function HomePage({ onOpenApp, isActive }) {
     } else {
       launchGameFromHome(item)
     }
+  }
+
+const openExternal = (url, label) => {
+    if (!url) return
+    const lower = url.toLowerCase()
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      if (onOpenApp) {
+        onOpenApp({ type: 'external', url, label })
+      } else {
+        window.open(url, '_blank')
+      }
+      return
+    }
+    if (isElectron()) {
+      try {
+        const { exec } = window.require('child_process')
+        const path = window.require('path')
+        exec(`start "" "${url}"`, { cwd: path.dirname(url) }, (err) => {
+          if (err) console.error('Failed to launch:', err)
+        })
+      } catch (err) {
+        console.error('Failed to launch:', err)
+      }
+    }
+  }
+
+  const favorites = useFavorites()
+  const library = useLibrary()
+
+  const pinsItems = useMemo(() => {
+    const favIds = new Set(favorites.map(entry => entry.id))
+    const favAt = new Map(favorites.map(entry => [entry.id, entry.at]))
+    const musicFavorites = config.musicFavorites || []
+    const customMusicCovers = config.customMusicCovers || {}
+    const items = []
+
+    allGames.forEach(game => {
+      const id = game.name
+      if (!favIds.has(id) && !game.isPinned) return
+      items.push({
+        id,
+        name: game.name,
+        icon: game.banner || game.icon || PLACEHOLDER_ART,
+        kind: 'game',
+        kindLabel: 'Game',
+        isPinned: game.isPinned,
+        mtime: favAt.get(id) || game.lastPlayed || 0,
+        ref: { game },
+      })
+    })
+
+    allRoms.forEach(rom => {
+      const id = rom.name
+      if (!favIds.has(id)) return
+      items.push({
+        id,
+        name: rom.name,
+        icon: rom.banner || rom.icon || PLACEHOLDER_ART,
+        kind: 'rom',
+        kindLabel: rom.systemName || 'ROM',
+        mtime: favAt.get(id) || 0,
+        ref: { rom },
+      })
+    })
+
+    ;(library.media || []).forEach(media => {
+      if (!favIds.has(media.path)) return
+      items.push({
+        id: media.path,
+        name: media.name,
+        icon: media.path,
+        kind: media.isVideo ? 'video' : 'photo',
+        kindLabel: media.isVideo ? 'Video' : 'Photo',
+        size: media.size,
+        mtime: favAt.get(media.path) || media.mtime || 0,
+        ref: { media },
+      })
+    })
+
+    const musicTracks = library.music || []
+    const seenTracks = new Set()
+    ;[...musicFavorites, ...favorites.map(entry => entry.id)].forEach(path => {
+      if (seenTracks.has(path)) return
+      seenTracks.add(path)
+      const track = musicTracks.find(t => t.path === path || t.id === path)
+      if (!track) return
+      items.push({
+        id: track.path,
+        name: track.name || track.path,
+        icon: customMusicCovers[track.path] || track.cover || './assets/icons/Music.png',
+        kind: 'music',
+        kindLabel: 'Music',
+        artist: track.artist || '',
+        album: track.album || '',
+        duration: track.duration || 0,
+        mtime: favAt.get(track.path) || 0,
+        isFavoriteRef: true,
+        ref: { track },
+      })
+    })
+
+    ;(library.apps || []).forEach(app => {
+      if (!favIds.has(app.name)) return
+      items.push({
+        id: app.name,
+        name: app.name,
+        icon: app.img,
+        kind: 'app',
+        kindLabel: 'App',
+        mtime: favAt.get(app.name) || 0,
+        ref: { app },
+      })
+    })
+
+    return items
+  }, [allGames, allRoms, favorites, library, config.musicFavorites, config.customMusicCovers])
+
+  const pinsFilters = useMemo(() => {
+    const favIds = new Set(favorites.map(entry => entry.id))
+    const isFavoriteRef = (item) => (item.isFavoriteRef !== undefined ? !!item.isFavoriteRef : favIds.has(item.id))
+    return [
+      { id: 'all', label: 'All', always: true, test: () => true },
+      { id: 'photo', label: 'Photos', test: i => i.kind === 'photo' },
+      { id: 'video', label: 'Videos', test: i => i.kind === 'video' },
+      { id: 'game', label: 'Games', test: i => i.kind === 'game' },
+      { id: 'rom', label: 'ROMs', test: i => i.kind === 'rom' },
+      { id: 'music', label: 'Music', test: i => i.kind === 'music' },
+      { id: 'app', label: 'Apps', test: i => i.kind === 'app' },
+      { id: 'favorites', label: 'Favorites', test: isFavoriteRef },
+    ]
+  }, [favorites])
+
+  const openPinnedItem = (item) => {
+    setShowListModal(false)
+    const ref = item.ref || {}
+    if (item.kind === 'game' && ref.game) {
+      launchGameFromHome(ref.game)
+      return
+    }
+    if (item.kind === 'rom' && ref.rom) {
+      launchRomFromHome(ref.rom)
+      return
+    }
+    if (item.kind === 'app' && ref.app) {
+      openExternal(ref.app.url, ref.app.name)
+      return
+    }
+    if (ref.media) {
+      window.dispatchEvent(new CustomEvent('winx360:open-category', { detail: 'media' }))
+      window.dispatchEvent(new CustomEvent('winx360:open-media', { detail: { path: ref.media.path } }))
+      return
+    }
+    if (ref.track) {
+      window.dispatchEvent(new CustomEvent('winx360:open-category', { detail: 'music' }))
+      window.dispatchEvent(new CustomEvent('winx360:open-track', { detail: { path: ref.track.path } }))
+    }
+  }
+
+  const togglePinFavorite = (item, next) => {
+    if (item.kind === 'music') {
+      const path = item.ref?.track?.path
+      if (!path) return
+      const current = config.musicFavorites || []
+      updateConfig('musicFavorites', next ? [...new Set([...current, path])] : current.filter(p => p !== path))
+      return
+    }
+    setFavorite(item.id, next)
+  }
+
+  const renderPinArtwork = (item) => {
+    if (item.kind === 'video' && item.ref?.media) {
+      return <video src={item.ref.media.path} muted preload="metadata" className="app-cover-img" />
+    }
+    if (!item.icon) return <div className="collection-card-placeholder" />
+    return (
+      <img
+        src={item.icon}
+        alt={item.name}
+        className="app-cover-img"
+        decoding="async"
+        loading="lazy"
+        onError={handleArtworkError}
+      />
+    )
   }
 
   const slideshowGames = useMemo(() => {
@@ -393,22 +587,40 @@ export default function HomePage({ onOpenApp, isActive }) {
         document.body
       )}
 
-      {/* Collection Page for Pins and Recents */}
-      {showListModal && (
+{/* Collection Page for Pins and Recents */}
+      {showListModal && (listModalType === 'pins' ? (
         <CollectionPage
-          title={listModalType === 'pins' ? 'My Pins' : 'Recent'}
-          items={(listModalType === 'pins'
-            ? (allGames || []).filter(g => g.isPinned)
-            : [...(allGames || [])].filter(g => g.lastPlayed).sort((a, b) => b.lastPlayed - a.lastPlayed).slice(0, 5)
-          ).map(g => ({ ...g, id: g.name }))}
+          title="My Pins"
+          mode="pins"
+          variant="apps"
+          items={pinsItems}
+          filterGroups={pinsFilters}
+          sortOptions={PINS_SORT_OPTIONS}
+          showSearch
+          searchPlaceholder="Search your pins..."
+          onToggleFavorite={togglePinFavorite}
+          renderItem={renderPinArtwork}
           onClose={() => setShowListModal(false)}
-          onItemAction={(game) => { launchGameFromHome(game); setShowListModal(false); }}
-          showPinButton={listModalType === 'pins'}
+          onItemAction={openPinnedItem}
+          emptyMessage="No favorites yet. Tap the ♥ on a game, photo, video, song or app and it will show up here."
+          isActive={isActive}
+        />
+      ) : (
+        <CollectionPage
+          title="Recent"
+          items={[...allGames]
+            .filter(g => g.lastPlayed)
+            .sort((a, b) => b.lastPlayed - a.lastPlayed)
+            .slice(0, 5)
+            .map(g => ({ ...g, id: g.name }))}
+          onClose={() => setShowListModal(false)}
+          onItemAction={(game) => { launchGameFromHome(game); setShowListModal(false) }}
+          showPinButton
           filters={[{ label: 'pinned games' }]}
           emptyMessage="No games to show here."
           isActive={isActive}
         />
-      )}
+      ))}
       <input
         ref={romInputRef}
         type="file"

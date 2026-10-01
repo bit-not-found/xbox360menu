@@ -196,6 +196,15 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const onOpenCategory = (e) => {
+      const index = categories.indexOf(e.detail)
+      if (index >= 0) handleCategoryChangeRef.current(index)
+    }
+    window.addEventListener('winx360:open-category', onOpenCategory)
+    return () => window.removeEventListener('winx360:open-category', onOpenCategory)
+  }, [])
+
+  useEffect(() => {
     const onGuideToggle = () => toggleGuide()
     const onCloseFocusedApp = () => {
       if (focusedAppIdRef.current) {

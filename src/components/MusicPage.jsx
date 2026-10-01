@@ -7,6 +7,7 @@ import barsVisualizer from './visualizers/bars.js'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, browserBasenameNoExt, toFileUrl } from '../utils/electron'
+import { publishLibrary } from '../utils/library'
 
 export default function MusicPage({ isActive }) {
   const { config, updateConfig } = useConfig()
@@ -21,7 +22,7 @@ export default function MusicPage({ isActive }) {
     currentTime, duration,
     volume, isMuted,
     formatTime,
-    togglePlay, next, prev, seek,
+    play, togglePlay, next, prev, seek,
     setVolume, toggleMute,
     addToQueue, playNext, playAlbum,
     getAudioContext, getAnalyser, connectAudioSource,
@@ -224,6 +225,24 @@ export default function MusicPage({ isActive }) {
       }
     }
   }, [musicFolder])
+
+  // Share the music library so other pages (e.g. Home "My Pins") can reach these tracks
+  useEffect(() => {
+    publishLibrary('music', playlist)
+  }, [playlist])
+
+  useEffect(() => {
+    const openFromPin = (e) => {
+      const path = e.detail?.path
+      if (!path) return
+      const index = playlist.findIndex(t => t.path === path || t.id === path)
+      if (index === -1) return
+      play(index)
+      setActiveView('songs')
+    }
+    window.addEventListener('winx360:open-track', openFromPin)
+    return () => window.removeEventListener('winx360:open-track', openFromPin)
+  }, [playlist, play])
 
   const selectFolder = async () => {
     if (isElectron()) {
