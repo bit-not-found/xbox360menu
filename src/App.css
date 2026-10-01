@@ -206,6 +206,133 @@
   height: 100%;
 }
 
+/* ===== HOME: PLAY A GAME SLIDESHOW ===== */
+.home-slide-tile {
+  background: #1a1a1a;
+}
+
+.home-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.home-slide-in {
+  animation: homeSlideIn 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.home-slide-out {
+  animation: homeSlideOut 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes homeSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes homeSlideOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+.home-slide-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-slide-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.25) 60%, rgba(0, 0, 0, 0.3) 100%);
+}
+
+.home-slide-name {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  right: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  z-index: 3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+  animation: homeSlideName 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes homeSlideName {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-slide-dots {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.home-slide-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.3s;
+}
+
+.home-slide-dot.active {
+  background: #ffffff;
+}
+
+.home-slide-counter {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 3;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
 .tiles-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 260px);

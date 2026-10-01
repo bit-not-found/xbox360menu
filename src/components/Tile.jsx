@@ -1,12 +1,17 @@
-import React from 'react';
 import { playHoverSound } from '../navigation/hoverSound';
 
 const selectAudio = new Audio('./assets/audio/Select.mp3');
 
-export default function Tile({ size, icon, label, className = '', style, children, onClick, onContextMenu, disabled = false }) {
-  const handleMouseEnter = () => {
+export default function Tile({ size, icon, label, className = '', style, children, onClick, onContextMenu, onMouseEnter, onMouseLeave, disabled = false }) {
+  const handleMouseEnter = (e) => {
     if (disabled) return;
     playHoverSound();
+    if (onMouseEnter) onMouseEnter(e);
+  };
+
+  const handleMouseLeave = (e) => {
+    if (disabled) return;
+    if (onMouseLeave) onMouseLeave(e);
   };
 
   const handleClick = () => {
@@ -21,6 +26,7 @@ export default function Tile({ size, icon, label, className = '', style, childre
       className={`tile ${size || ''} ${className} ${disabled ? 'tile-disabled' : ''}`}
       style={style}
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onClick={handleClick}
       onContextMenu={onContextMenu}
     >

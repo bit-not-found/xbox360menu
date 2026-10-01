@@ -2,8 +2,10 @@ import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import CollectionPage from './CollectionPage'
+import GameSlideshowTile from './GameSlideshowTile'
 import { useConfig } from '../context/ConfigContext'
-import { isElectron } from '../utils/electron'
+import { isElectron, getNodeFs } from '../utils/electron'
+import { loadRomFile } from '../utils/romCache'
 
 const SYSTEM_CORE_MAP = {
   nes: 'fceumm', sfc: 'snes9x', smc: 'snes9x', gba: 'mgba', gb: 'mgba', gbc: 'mgba',
@@ -36,7 +38,8 @@ const subdomains = [
 
 export default function HomePage({ onOpenApp, isActive }) {
   const { config, updateConfig } = useConfig()
-  const allGames = config.myGames || []
+  const allGames = useMemo(() => config.myGames || [], [config.myGames])
+  const allRoms = useMemo(() => config.myRoms || [], [config.myRoms])
   const tilesConfig = config.homeTiles || {}
 
   const setTilesConfig = (newVal) => {
@@ -77,12 +80,7 @@ export default function HomePage({ onOpenApp, isActive }) {
 
   const handleOpenApp = (tileId) => {
     if (tileId === 'c1-r1') {
-      const recent = [...allGames].sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
-      if (recent.length > 0 && recent[0].lastPlayed && recent[0].exe && isElectron()) {
-        launchGameFromHome(recent[0])
-      } else {
-        romInputRef.current?.click()
-      }
+      romInputRef.current?.click()
       return
     }
     if (tileId === 'c1-r2') {
@@ -132,9 +130,69 @@ export default function HomePage({ onOpenApp, isActive }) {
 
         const updatedGames = allGames.map(g => g.name === game.name ? { ...g, lastPlayed: Date.now() } : g)
         updateConfig('myGames', updatedGames)
-      } catch(e) {}
+      } catch (err) {
+        console.error('Failed to launch game:', err)
+      }
     }
   }
+
+  const launchRomFromHome = async (rom) => {
+    const fileName = `${rom.name}.${rom.ext}`
+    let romData = null
+
+    try {
+      const cachedFile = await loadRomFile(fileName)
+      if (cachedFile) romData = cachedFile instanceof Blob ? cachedFile : new Blob([cachedFile])
+    } catch (e) {
+      console.warn('Failed to load ROM from cache:', e)
+    }
+
+    if (!romData && rom.path) {
+      try {
+        const fs = getNodeFs()
+        if (fs && fs.promises && fs.promises.readFile) {
+          romData = new Blob([await fs.promises.readFile(rom.path)])
+        } else if (fs && fs.readFileSync) {
+          romData = new Blob([fs.readFileSync(rom.path)])
+        }
+      } catch (e) {
+        console.error('Failed to read ROM file from disk:', e)
+      }
+    }
+
+    if (!romData) {
+      alert('ROM file not available. Please re-add this ROM using the Add Game button.')
+      return
+    }
+
+    if (onOpenApp) {
+      onOpenApp({
+        type: 'emulator',
+        rom: romData,
+        fileName,
+        core: rom.core || 'fceumm',
+        label: rom.name,
+        systemName: rom.systemName
+      })
+    }
+  }
+
+  const playSlideGame = (item) => {
+    if (!item) return
+    if (item.isRom) {
+      launchRomFromHome(item.romData || item)
+    } else {
+      launchGameFromHome(item)
+    }
+  }
+
+  const slideshowGames = useMemo(() => {
+    const combined = [
+      ...allGames.map(g => ({ ...g, isRom: false })),
+      ...allRoms.map(r => ({ ...r, isRom: true, romData: r }))
+    ]
+    return combined.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
+  }, [allGames, allRoms])
 
   const handleRomFileSelect = (e) => {
     const file = e.target.files[0]
@@ -237,22 +295,15 @@ export default function HomePage({ onOpenApp, isActive }) {
       <div className="home-grid">
         {/* Column 1 - Left */}
         <div className="home-c1-r1">
-          {(() => {
-            const recent = [...(allGames || [])].sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
-            const lastGame = recent.length > 0 && recent[0].lastPlayed ? recent[0] : null
-            if (lastGame) {
-              return (
-                <Tile 
-                  label={lastGame.name}
-                  icon={<img src="./assets/icons/controller.png" alt="Play Game" />}
-                  style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url("${lastGame.banner}")`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                  onClick={() => handleOpenApp('c1-r1')}
-                  onContextMenu={(e) => handleContextMenu(e, 'c1-r1')}
-                />
-              )
-            }
-            return renderTile('c1-r1', 'Play Game', <img src="./assets/icons/controller.png" alt="Play Game" />)
-          })()}
+          {slideshowGames.length > 0 ? (
+            <GameSlideshowTile
+              games={slideshowGames}
+              isActive={isActive}
+              onSelect={playSlideGame}
+            />
+          ) : (
+            renderTile('c1-r1', 'Play Game', <img src="./assets/icons/controller.png" alt="Play Game" />)
+          )}
         </div>
         <div className="home-c1-r2">
           {renderTile('c1-r2', 'My Pins', <img src="./assets/icons/pin.png" alt="My Pins" />)}

@@ -1,0 +1,14 @@
+<script>
+  const svg = (c) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="520" height="320"><rect width="520" height="320" fill="${c}"/><text x="50%" y="50%" fill="#fff" font-size="42" font-family="sans-serif" text-anchor="middle">${c}</text></svg>`);
+  const games = [
+    { name: 'Halo Infinite', exe: 'C:\\Games\\halo.exe', icon: svg('#c0392b'), banner: svg('#c0392b'), stars: 5, isPinned: true, lastPlayed: Date.now() - 1000 },
+    { name: 'Forza Horizon 5', exe: 'C:\\Games\\forza.exe', icon: svg('#2980b9'), banner: svg('#2980b9'), stars: 4, isPinned: false, lastPlayed: Date.now() - 900000 },
+    { name: 'Elden Ring', exe: 'C:\\Games\\elden.exe', icon: svg('#27ae60'), banner: svg('#27ae60'), stars: 5, isPinned: true, lastPlayed: Date.now() - 5000000 },
+    { name: 'Cyberpunk 2077', exe: 'C:\\Games\\cp.exe', icon: svg('#8e44ad'), banner: svg('#8e44ad'), stars: 3, isPinned: false, lastPlayed: 0 },
+    { name: 'Super Mario World', path: '/roms/smw.sfc', ext: 'sfc', system: 'snes9x', systemName: 'SNES', core: 'snes9x', icon: svg('#d35400'), banner: svg('#d35400') }
+  ];
+  localStorage.setItem('myGames', JSON.stringify(games.slice(0, 4)));
+  localStorage.setItem('myRoms', JSON.stringify([games[4]]));
+  localStorage.setItem('controllerSettings', JSON.stringify({ deadzone: 0.35, vibration: true, preset: 'xbox' }));
+  location.replace('/');
+</script>
