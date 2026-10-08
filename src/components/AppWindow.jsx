@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Nostalgist } from 'nostalgist'
 import { useConfig } from '../context/ConfigContext'
+import { saveGameState, loadGameState, hasGameState } from '../utils/saveStates'
 
 const backAudio = new Audio('./assets/audio/Back.mp3')
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -86,18 +87,98 @@ function buildRetroarchInputConfig(controllerSettings) {
   return config
 }
 
+// The emulator lives in a module singleton, so a second open window must never
+// act on a game that Nostalgist is not currently running.
+function ownsEmulator(app) {
+  return !!activeNostalgist && app._lastLabel === app.label
+}
+
+// Save states are keyed the same way the ROM cache keys ROMs, so a state saved
+// from the Games page is found again when the same ROM is launched elsewhere.
+function getStateId(app) {
+  return app.type === 'emulator' ? (app.fileName || app.label || null) : null
+}
+
 export default function AppWindow({ app, onClose, onMinimize, minimized }) {
   const { config } = useConfig()
   const [isClosing, setIsClosing] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [showNav, setShowNav] = useState(true)
   const [emulatorReady, setEmulatorReady] = useState(false)
+  const [hasSavedState, setHasSavedState] = useState(false)
+  const [stateStatus, setStateStatus] = useState('')
   const navTimeout = useRef(null)
+  const statusTimeout = useRef(null)
   const iframeRef = useRef(null)
 
   const isEmulator = app.type === 'emulator'
   const isExternal = app.type === 'external'
   const isInternal = app.type === 'internal'
+
+  const stateId = getStateId(app)
+
+  const showStateStatus = useCallback((message) => {
+    setStateStatus(message)
+    if (statusTimeout.current) clearTimeout(statusTimeout.current)
+    statusTimeout.current = setTimeout(() => setStateStatus(''), 1800)
+  }, [])
+
+  useEffect(() => () => {
+    if (statusTimeout.current) clearTimeout(statusTimeout.current)
+  }, [])
+
+  // Reflect an existing state in the Load button as soon as the game is up.
+  useEffect(() => {
+    if (!emulatorReady || !stateId) return
+    let cancelled = false
+    hasGameState(stateId).then((exists) => {
+      if (!cancelled) setHasSavedState(exists)
+    })
+    return () => { cancelled = true }
+  }, [emulatorReady, stateId])
+
+  const handleSaveState = useCallback(async () => {
+    if (!ownsEmulator(app)) return
+    try {
+      const { state, thumbnail } = await activeNostalgist.saveState()
+      if (!state) {
+        showStateStatus('Nothing to save')
+        return
+      }
+      const saved = await saveGameState(getStateId(app), {
+        label: app.label,
+        core: app.core,
+        state,
+        thumbnail,
+      })
+      if (saved) {
+        setHasSavedState(true)
+        showStateStatus('State saved')
+      } else {
+        showStateStatus('Save failed')
+      }
+    } catch (err) {
+      console.error('Failed to save state:', err)
+      showStateStatus('Save failed')
+    }
+  }, [app, showStateStatus])
+
+  const handleLoadState = useCallback(async () => {
+    if (!ownsEmulator(app)) return
+    try {
+      const record = await loadGameState(getStateId(app))
+      if (!record || !record.state) {
+        setHasSavedState(false)
+        showStateStatus('No state saved')
+        return
+      }
+      await activeNostalgist.loadState(record.state)
+      showStateStatus('State loaded')
+    } catch (err) {
+      console.error('Failed to load state:', err)
+      showStateStatus('Load failed')
+    }
+  }, [app, showStateStatus])
 
   const handleClose = useCallback(() => {
     backAudio.currentTime = 0
@@ -252,6 +333,9 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
             {app.systemName && (
               <span className="app-window-system-badge">{app.systemName}</span>
             )}
+            {stateStatus && (
+              <span className="app-window-status">{stateStatus}</span>
+            )}
           </div>
           <div className="app-window-bar-right">
             {emulatorReady && (
@@ -264,21 +348,22 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                   </svg>
                 </button>
-                <button className="app-window-btn" onClick={() => {
-                  try {
-                    const state = activeNostalgist?.saveState()
-                    if (state) state.then(({ blob }) => {
-                      const a = document.createElement('a')
-                      a.href = URL.createObjectURL(blob)
-                      a.download = `${app.label || 'save'}.state`
-                      a.click()
-                    })
-                  } catch { /* noop */ }
-                }} title="Save State">
+                <button className="app-window-btn" onClick={handleSaveState} title="Save State">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                     <polyline points="17 21 17 13 7 13 7 21" />
                     <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                </button>
+                <button
+                  className="app-window-btn"
+                  onClick={handleLoadState}
+                  disabled={!hasSavedState}
+                  title={hasSavedState ? 'Load State' : 'No saved state'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                   </svg>
                 </button>
               </>

@@ -2081,6 +2081,25 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.app-window-btn:disabled {
+  color: #4a4a4a;
+  background: none;
+  cursor: default;
+}
+
+.app-window-status {
+  font-size: 0.7rem;
+  color: #107c10;
+  background: rgba(16, 124, 16, 0.15);
+  border: 1px solid rgba(16, 124, 16, 0.3);
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  align-self: center;
+}
+
 .app-window-content {
   flex: 1;
   position: relative;
