@@ -7,12 +7,20 @@ import { useConfig } from '../context/ConfigContext'
 import { isElectron, getNodeFs } from '../utils/electron'
 import { loadRomFile } from '../utils/romCache'
 import { useFavorites, setFavorite } from '../utils/favorites'
+import { useRecents, pushRecent } from '../utils/recents'
 import { useLibrary } from '../utils/library'
 import { PLACEHOLDER_ART, handleArtworkError } from '../utils/artwork'
 
 const PINS_SORT_OPTIONS = [
   { id: 'newest', label: 'Recently pinned' },
   { id: 'oldest', label: 'Oldest pinned' },
+  { id: 'type', label: 'Type' },
+  { id: 'name', label: 'Name A-Z' },
+]
+
+const RECENT_SORT_OPTIONS = [
+  { id: 'newest', label: 'Most recent' },
+  { id: 'oldest', label: 'Least recent' },
   { id: 'type', label: 'Type' },
   { id: 'name', label: 'Name A-Z' },
 ]
@@ -70,7 +78,17 @@ export default function HomePage({ onOpenApp, isActive }) {
 
   const handleContextMenu = (e, tileId) => {
     e.preventDefault()
-    if (['c1-r1', 'c1-r2', 'c1-r3'].includes(tileId)) return
+    if (tileId === 'c1-r2') {
+      setListModalType('pins')
+      setShowListModal(true)
+      return
+    }
+    if (tileId === 'c1-r3') {
+      setListModalType('recent')
+      setShowListModal(true)
+      return
+    }
+    if (tileId === 'c1-r1') return
     setEditingTileId(tileId)
     const config = tilesConfig[tileId] || {}
     setEditImgPath(config.bg || '')
@@ -138,6 +156,7 @@ export default function HomePage({ onOpenApp, isActive }) {
           if (err) console.error('Failed to launch:', err)
         })
 
+        pushRecent(game.name, 'game')
         const updatedGames = allGames.map(g => g.name === game.name ? { ...g, lastPlayed: Date.now() } : g)
         updateConfig('myGames', updatedGames)
       } catch (err) {
@@ -176,6 +195,7 @@ export default function HomePage({ onOpenApp, isActive }) {
     }
 
     if (onOpenApp) {
+      pushRecent(rom.name, 'rom')
       onOpenApp({
         type: 'emulator',
         rom: romData,
@@ -222,6 +242,7 @@ const openExternal = (url, label) => {
 
   const favorites = useFavorites()
   const library = useLibrary()
+  const recents = useRecents()
 
   const pinsItems = useMemo(() => {
     const favIds = new Set(favorites.map(entry => entry.id))
@@ -338,6 +359,7 @@ const openExternal = (url, label) => {
       return
     }
     if (item.kind === 'app' && ref.app) {
+      pushRecent(ref.app.name, 'app')
       openExternal(ref.app.url, ref.app.name)
       return
     }
@@ -393,26 +415,68 @@ const openExternal = (url, label) => {
     [pinsItems]
   )
 
-  const openPinsList = (e) => {
-    e.preventDefault()
-    setListModalType('pins')
-    setShowListModal(true)
-  }
+  // Recently opened games/ROMs/apps, resolved against the live libraries so
+  // removed items drop out. Legacy game.lastPlayed values seed the list too.
+  const recentItems = useMemo(() => {
+    const stamps = new Map()
+    allGames.forEach(g => {
+      if (g.lastPlayed) stamps.set(`game:${g.name}`, g.lastPlayed)
+    })
+    recents.forEach(entry => stamps.set(`${entry.kind}:${entry.id}`, entry.at))
 
-  const recentItems = useMemo(
-    () => [...allGames]
-      .filter(g => g.lastPlayed)
-      .sort((a, b) => b.lastPlayed - a.lastPlayed)
-      .slice(0, 5)
-      .map(g => ({ ...g, id: g.name })),
-    [allGames]
-  )
+    const sorted = [...stamps.entries()].sort((a, b) => b[1] - a[1])
+    const items = []
+    for (const [key, at] of sorted) {
+      const sep = key.indexOf(':')
+      const kind = key.slice(0, sep)
+      const id = key.slice(sep + 1)
+      if (kind === 'game') {
+        const game = allGames.find(g => g.name === id)
+        if (!game) continue
+        items.push({
+          id,
+          name: game.name,
+          icon: game.banner || game.icon || PLACEHOLDER_ART,
+          kind: 'game',
+          kindLabel: 'Game',
+          mtime: at,
+          ref: { game },
+        })
+      } else if (kind === 'rom') {
+        const rom = allRoms.find(r => r.name === id)
+        if (!rom) continue
+        items.push({
+          id,
+          name: rom.name,
+          icon: rom.banner || rom.icon || PLACEHOLDER_ART,
+          kind: 'rom',
+          kindLabel: rom.systemName || 'ROM',
+          mtime: at,
+          ref: { rom },
+        })
+      } else if (kind === 'app') {
+        const app = (library.apps || []).find(a => a.name === id)
+        if (!app) continue
+        items.push({
+          id,
+          name: app.name,
+          icon: app.img,
+          kind: 'app',
+          kindLabel: 'App',
+          mtime: at,
+          ref: { app },
+        })
+      }
+    }
+    return items
+  }, [recents, allGames, allRoms, library])
 
-  const openRecentList = (e) => {
-    e.preventDefault()
-    setListModalType('recent')
-    setShowListModal(true)
-  }
+  const recentFilters = useMemo(() => [
+    { id: 'all', label: 'All', always: true, test: () => true },
+    { id: 'game', label: 'Games', test: i => i.kind === 'game' },
+    { id: 'rom', label: 'ROMs', test: i => i.kind === 'rom' },
+    { id: 'app', label: 'Apps', test: i => i.kind === 'app' },
+  ], [])
 
   const handleRomFileSelect = (e) => {
     const file = e.target.files[0]
@@ -533,7 +597,7 @@ const openExternal = (url, label) => {
               onSelect={openPinnedItem}
               keyOf={(pin) => pin.id}
               showName={false}
-              onContextMenu={openPinsList}
+              onContextMenu={(e) => handleContextMenu(e, 'c1-r2')}
             />
           ) : (
             renderTile('c1-r2', 'My Pins', <img src="./assets/icons/pin.png" alt="My Pins" />)
@@ -544,10 +608,10 @@ const openExternal = (url, label) => {
             <SlideshowTile
               items={recentItems}
               isActive={isActive}
-              onSelect={launchGameFromHome}
-              keyOf={(game) => game.id}
+              onSelect={openPinnedItem}
+              keyOf={(item) => item.id}
               showName={false}
-              onContextMenu={openRecentList}
+              onContextMenu={(e) => handleContextMenu(e, 'c1-r3')}
             />
           ) : (
             renderTile('c1-r3', 'Recent', <img src="./assets/icons/clock.png" alt="Recent" />)
@@ -656,12 +720,18 @@ const openExternal = (url, label) => {
       ) : (
         <CollectionPage
           title="Recent"
+          mode="pins"
+          variant="apps"
           items={recentItems}
+          filterGroups={recentFilters}
+          sortOptions={RECENT_SORT_OPTIONS}
+          showSearch
+          searchPlaceholder="Search recents..."
+          onToggleFavorite={togglePinFavorite}
+          renderItem={renderPinArtwork}
           onClose={() => setShowListModal(false)}
-          onItemAction={(game) => { launchGameFromHome(game); setShowListModal(false) }}
-          showPinButton
-          filters={[{ label: 'pinned games' }]}
-          emptyMessage="No games to show here."
+          onItemAction={openPinnedItem}
+          emptyMessage="Nothing opened yet. Launch a game or app and it will show up here."
           isActive={isActive}
         />
       ))}

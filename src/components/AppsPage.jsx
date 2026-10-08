@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import { useConfig } from '../context/ConfigContext'
 import { publishLibrary } from '../utils/library'
+import { pushRecent } from '../utils/recents'
 
 const defaultApps = [
   { name: 'YouTube', url: 'https://www.youtube.com', img: './assets/imgs/youtube.png' },
@@ -42,7 +43,8 @@ export default function AppsPage({ isActive }) {
     publishLibrary('apps', apps || [])
   }, [apps])
 
-  const handleOpenApp = (url) => {
+  const handleOpenApp = (url, name) => {
+    if (name) pushRecent(name, 'app')
     if (url.toLowerCase().startsWith('http://') || url.toLowerCase().startsWith('https://')) {
       window.open(url, '_blank')
     } else {
@@ -117,7 +119,7 @@ export default function AppsPage({ isActive }) {
             <div key={app.name} className="apps-tile-wrapper">
               <Tile 
                 className="app-tile" 
-                onClick={() => handleOpenApp(app.url)}
+                onClick={() => handleOpenApp(app.url, app.name)}
                 onContextMenu={(e) => openEditModal(app, e)}
               >
                 <img src={app.img} alt={app.name} className="app-cover-img" />

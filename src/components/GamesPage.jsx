@@ -5,6 +5,7 @@ import CollectionPage from './CollectionPage'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getIpcRenderer, getNodeFs, getNodePath, getNodeChildProcess } from '../utils/electron'
 import { saveRomFile, loadRomFile } from '../utils/romCache'
+import { pushRecent } from '../utils/recents'
 import { playHoverSound } from '../navigation/hoverSound'
 
 const selectAudio = new Audio('./assets/audio/Select.mp3')
@@ -238,6 +239,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
     }
 
     if (onOpenApp) {
+      pushRecent(rom.name, 'rom')
       onOpenApp({
         type: 'emulator',
         rom: romData,
@@ -397,6 +399,7 @@ export default function GamesPage({ onOpenApp, isActive }) {
           exec(`start "" "${game.exe}"`, { cwd: exeDir }, (err) => {
             if (err) console.error('Failed to launch:', err)
           })
+          pushRecent(game.name, 'game')
         } else {
           alert('Could not access system launch tools. Please restart the app.')
         }
