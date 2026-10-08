@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { registerBackHandler, registerBumperHandler, clearNavFocus, getNavFocused, cycleSelectValue, onNavFocusChange } from '../navigation/navEngine'
 import { playHoverSound } from '../navigation/hoverSound'
 import { toggleFavorite, useFavorites } from '../utils/favorites'
 import { handleArtworkError } from '../utils/artwork'
@@ -288,30 +288,62 @@ onAddItem,
 
   const rootRef = useRef(null)
   const handleCloseRef = useRef(handleClose)
+  const confirmDeleteRef = useRef(null)
 
   useEffect(() => {
     handleCloseRef.current = handleClose
   }, [handleClose])
 
   useEffect(() => {
+    confirmDeleteRef.current = confirmDelete
+  }, [confirmDelete])
+
+  // Any focus move (nav or mouse) disarms a pending delete confirmation.
+  useEffect(() => {
+    return onNavFocusChange(() => {
+      if (confirmDeleteRef.current != null) setConfirmDelete(null)
+    })
+  }, [])
+
+  useEffect(() => {
     const el = rootRef.current
     if (!el) return undefined
-    return registerBackHandler(el, () => handleCloseRef.current())
+    return registerBackHandler(el, () => {
+      if (confirmDeleteRef.current != null) {
+        setConfirmDelete(null)
+        playBack()
+        return
+      }
+      handleCloseRef.current()
+    })
   }, [])
 
   useEffect(() => {
     return registerBumperHandler((delta) => {
-      const chipNodes = rootRef.current
-        ? rootRef.current.querySelectorAll('.collection-chips .collection-chip')
-        : []
-      if (!chipNodes.length) return
-      const list = Array.from(chipNodes)
-      let idx = list.findIndex(c => c.classList.contains('active'))
-      if (idx < 0) idx = 0
-      const next = (idx + delta + list.length) % list.length
-      playSelect()
-      list[next].click()
-      clearNavFocus()
+      const root = rootRef.current
+      if (!root) return
+      const focused = getNavFocused()
+      if (focused && focused.tagName === 'SELECT' && root.contains(focused)) {
+        playSelect()
+        cycleSelectValue(focused, delta)
+        return
+      }
+      const chipNodes = root.querySelectorAll('.collection-chips .collection-chip:not(.collection-chip-add)')
+      if (chipNodes.length) {
+        const list = Array.from(chipNodes)
+        let idx = list.findIndex(c => c.classList.contains('active'))
+        if (idx < 0) idx = 0
+        const next = (idx + delta + list.length) % list.length
+        playSelect()
+        list[next].click()
+        clearNavFocus()
+        return
+      }
+      const selects = root.querySelectorAll('.collection-secondary-filters select')
+      if (selects.length) {
+        playSelect()
+        cycleSelectValue(selects[selects.length - 1], delta)
+      }
     })
   }, [])
 

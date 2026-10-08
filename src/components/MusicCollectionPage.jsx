@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useConfig } from '../context/ConfigContext'
 import { useMusic } from '../context/MusicContext'
 import { isElectron, getNodeFs, browserBasename } from '../utils/electron'
-import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../navigation/navEngine'
+import { registerBackHandler, registerBumperHandler, clearNavFocus, getNavFocused, cycleSelectValue } from '../navigation/navEngine'
 import { playHoverSound } from '../navigation/hoverSound'
 import {
   readTrackBytes,
@@ -199,22 +199,51 @@ export default function MusicCollectionPage({
 
   const rootRef = useRef(null)
   const handleCloseRef = useRef(handleClose)
+  const detailRef = useRef(false)
+  const menuOpenRef = useRef(false)
 
   useEffect(() => {
     handleCloseRef.current = handleClose
   }, [handleClose])
 
   useEffect(() => {
+    detailRef.current = !!(selectedArtist || selectedAlbum || selectedPlaylist)
+  }, [selectedArtist, selectedAlbum, selectedPlaylist])
+
+  useEffect(() => {
+    menuOpenRef.current = !!contextMenu
+  }, [contextMenu])
+
+  useEffect(() => {
     const el = rootRef.current
     if (!el) return undefined
-    return registerBackHandler(el, () => handleCloseRef.current())
+    return registerBackHandler(el, () => {
+      if (menuOpenRef.current) {
+        setContextMenu(null)
+        return
+      }
+      if (detailRef.current) {
+        playBack()
+        setSelectedArtist(null)
+        setSelectedAlbum(null)
+        setSelectedPlaylist(null)
+        return
+      }
+      handleCloseRef.current()
+    })
   }, [])
 
   useEffect(() => {
     return registerBumperHandler((delta) => {
-      const chipNodes = rootRef.current
-        ? rootRef.current.querySelectorAll('.collection-chips .collection-chip')
-        : []
+      const root = rootRef.current
+      if (!root) return
+      const focused = getNavFocused()
+      if (focused && focused.tagName === 'SELECT' && root.contains(focused)) {
+        playSelect()
+        cycleSelectValue(focused, delta)
+        return
+      }
+      const chipNodes = root.querySelectorAll('.collection-chips .collection-chip:not(.collection-chip-add)')
       if (!chipNodes.length) return
       const list = Array.from(chipNodes)
       let idx = list.findIndex(c => c.classList.contains('active'))

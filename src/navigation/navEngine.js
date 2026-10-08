@@ -71,10 +71,14 @@ const FOCUSABLE_SELECTOR = [
   '.music-playlist-create-card',
   '.music-back-btn',
   '.music-action-btn',
+  '.music-letter-btn',
+  '.music-track-fav-btn',
+  '.music-album-play-btn',
 ].join(',')
 
 const backHandlers = new Map()
 const bumperStack = []
+const focusListeners = new Set()
 let explicitPause = false
 let started = false
 let rafId = null
@@ -192,13 +196,67 @@ function clearFocusClass(el) {
   }
 }
 
+// Step a <select> through its enabled options and notify React (controlled selects).
+export function cycleSelectValue(el, delta) {
+  if (!el || el.tagName !== 'SELECT') return false
+  const opts = Array.from(el.options || [])
+  const enabled = opts.filter((o) => !o.disabled)
+  if (enabled.length < 2) return false
+  let idx = enabled.indexOf(el.options[el.selectedIndex])
+  if (idx < 0) idx = delta > 0 ? enabled.length - 1 : 0
+  const next = enabled[(idx + delta + enabled.length) % enabled.length]
+  if (!next) return false
+  el.selectedIndex = opts.indexOf(next)
+  el.dispatchEvent(new Event('change', { bubbles: true }))
+  return true
+}
+
+function cycleFocusedSelect(delta) {
+  if (!focusedEl || !focusedEl.isConnected || focusedEl.tagName !== 'SELECT') return false
+  if (!cycleSelectValue(focusedEl, delta)) return false
+  playHoverSound()
+  blockHoverSound(200)
+  return true
+}
+
+// Drop native focus when the nav focus leaves an element that contained it,
+// so typing can never target a control that no longer has the nav highlight.
+function releaseNativeFocus(prev, next) {
+  if (!prev || prev === next) return
+  const ae = document.activeElement
+  if (!ae || ae === document.body || ae === document.documentElement) return
+  if (!(ae instanceof Element)) return
+  if (next && (next === ae || next.contains(ae))) return
+  if (prev.contains(ae) && typeof ae.blur === 'function') ae.blur()
+}
+
+function notifyFocusListeners(el) {
+  if (!focusListeners.size) return
+  for (const fn of Array.from(focusListeners)) {
+    try {
+      fn(el)
+    } catch {
+      /* noop */
+    }
+  }
+}
+
+export function onNavFocusChange(fn) {
+  focusListeners.add(fn)
+  return () => {
+    focusListeners.delete(fn)
+  }
+}
+
 function setFocused(el, { silent = false, scroll = true } = {}) {
   if (focusedEl === el) {
     if (el && scroll) scrollIntoViewSafe(el)
     return
   }
+  const prev = focusedEl
   clearFocusClass(focusedEl)
   focusedEl = el
+  releaseNativeFocus(prev, el)
   if (el) {
     pendingInitialFocus = false
     el.classList.add('nav-focused')
@@ -209,6 +267,7 @@ function setFocused(el, { silent = false, scroll = true } = {}) {
     }
     if (scroll) scrollIntoViewSafe(el)
   }
+  notifyFocusListeners(el)
 }
 
 function scrollIntoViewSafe(el) {
@@ -341,6 +400,9 @@ function moveFocus(dir) {
   lastControllerNavAt = performance.now()
   pendingInitialFocus = false
 
+  // Left/Right on a focused dropdown steps its value instead of moving focus.
+  if ((dir === 'left' || dir === 'right') && cycleFocusedSelect(dir === 'right' ? 1 : -1)) return
+
   const roots = getScopeRoots()
   const items = collectFocusables(roots)
   if (!items.length) {
@@ -395,7 +457,11 @@ function activateFocused() {
   const el = focusedEl
   if (!el) return
   const tag = el.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+  if (tag === 'SELECT') {
+    cycleFocusedSelect(1)
+    return
+  }
+  if (tag === 'INPUT' || tag === 'TEXTAREA') {
     el.focus()
     return
   }
@@ -585,11 +651,12 @@ function pollKeyboardRepeat(now) {
 }
 
 function onKeyDown(e) {
-  if (isTypingTarget(e.target)) return
   if (isRemapOpen()) return
   if (isIntroVisible()) return
   if (isSliding()) return
   if (e.ctrlKey || e.metaKey || e.altKey) return
+
+  const typing = isTypingTarget(e.target)
 
   if (e.key === 'Escape') {
     const overlay = getTopOverlayRoot()
@@ -602,6 +669,16 @@ function onKeyDown(e) {
   }
 
   if (!uiModeAllowsNav()) return
+
+  // A natively focused field must not trap the nav keys: release it first so
+  // arrows/Enter fall through to the normal focus movement / activation.
+  if (typing) {
+    const dir = DIR_KEYS[e.key]
+    const isSelect = e.target.tagName === 'SELECT'
+    const releasable = isSelect || dir === 'up' || dir === 'down'
+    if (!releasable) return
+    if (typeof e.target.blur === 'function') e.target.blur()
+  }
 
   const dir = DIR_KEYS[e.key]
   if (dir) {

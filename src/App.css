@@ -5155,3 +5155,30 @@ select.nav-focused:focus {
 }
 
 
+
+.collection-card-fav.nav-focused,
+.collection-card-delete.nav-focused {
+  opacity: 1;
+}
+
+.collection-card-pin.nav-focused {
+  color: #ffb400;
+}
+
+.music-letter-btn.nav-focused {
+  background: rgba(0, 0, 0, 0.08);
+  color: #333;
+}
+
+.music-track-fav-btn.nav-focused {
+  color: #ff4444;
+}
+
+.music-album-card.nav-focused .music-album-play-btn,
+.music-album-play-btn.nav-focused {
+  opacity: 1;
+}
+
+.music-album-play-btn.nav-focused {
+  transform: scale(1.1);
+}
