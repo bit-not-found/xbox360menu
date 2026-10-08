@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import Tile from './Tile'
 import CollectionPage from './CollectionPage'
-import GameSlideshowTile from './GameSlideshowTile'
+import SlideshowTile from './SlideshowTile'
 import { useConfig } from '../context/ConfigContext'
 import { isElectron, getNodeFs } from '../utils/electron'
 import { loadRomFile } from '../utils/romCache'
@@ -388,6 +388,17 @@ const openExternal = (url, label) => {
     return combined.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
   }, [allGames, allRoms])
 
+  const slideshowPins = useMemo(
+    () => [...pinsItems].sort((a, b) => (b.mtime || 0) - (a.mtime || 0)),
+    [pinsItems]
+  )
+
+  const openPinsList = (e) => {
+    e.preventDefault()
+    setListModalType('pins')
+    setShowListModal(true)
+  }
+
   const handleRomFileSelect = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -490,8 +501,8 @@ const openExternal = (url, label) => {
         {/* Column 1 - Left */}
         <div className="home-c1-r1">
           {slideshowGames.length > 0 ? (
-            <GameSlideshowTile
-              games={slideshowGames}
+            <SlideshowTile
+              items={slideshowGames}
               isActive={isActive}
               onSelect={playSlideGame}
             />
@@ -500,7 +511,18 @@ const openExternal = (url, label) => {
           )}
         </div>
         <div className="home-c1-r2">
-          {renderTile('c1-r2', 'My Pins', <img src="./assets/icons/pin.png" alt="My Pins" />)}
+          {slideshowPins.length > 0 ? (
+            <SlideshowTile
+              items={slideshowPins}
+              isActive={isActive}
+              onSelect={openPinnedItem}
+              keyOf={(pin) => pin.id}
+              showName={false}
+              onContextMenu={openPinsList}
+            />
+          ) : (
+            renderTile('c1-r2', 'My Pins', <img src="./assets/icons/pin.png" alt="My Pins" />)
+          )}
         </div>
         <div className="home-c1-r3">
           {renderTile('c1-r3', 'Recente', <img src="./assets/icons/clock.png" alt="Recente" />)}

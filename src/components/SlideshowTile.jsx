@@ -1,31 +1,46 @@
 import { useEffect, useMemo, useState } from 'react'
 import Tile from './Tile'
+import { PLACEHOLDER_ART } from '../utils/artwork'
 
 const SLIDE_DURATION = 5000
 const TRANSITION_MS = 900
-const FALLBACK_ART = './assets/imgs/260x195-PLACEHOLDER.png'
 const MAX_DOTS = 10
 
-function gameArt(game) {
-  return game.banner || game.icon || FALLBACK_ART
+function defaultArtOf(item) {
+  return item.banner || item.icon || PLACEHOLDER_ART
 }
 
-function SlideLayer({ game, state }) {
-  const src = gameArt(game)
+function SlideLayer({ item, state, artOf }) {
+  const src = artOf(item) || PLACEHOLDER_ART
+  if (item.kind === 'video') {
+    return (
+      <div className={`home-slide home-slide-${state}`}>
+        <video src={src} muted preload="metadata" className="home-slide-img" />
+      </div>
+    )
+  }
   return (
     <div className={`home-slide home-slide-${state}`}>
       <img
         src={src}
         alt=""
         className="home-slide-img"
-        onError={(e) => { if (!e.currentTarget.src.endsWith(FALLBACK_ART)) e.currentTarget.src = FALLBACK_ART }}
+        onError={(e) => { if (!e.currentTarget.src.endsWith(PLACEHOLDER_ART)) e.currentTarget.src = PLACEHOLDER_ART }}
       />
     </div>
   )
 }
 
-export default function GameSlideshowTile({ games, isActive = true, onSelect }) {
-  const slides = useMemo(() => (games || []).filter(g => g && g.name), [games])
+export default function SlideshowTile({
+  items,
+  isActive = true,
+  onSelect,
+  onContextMenu,
+  artOf = defaultArtOf,
+  keyOf = (item) => item.name,
+  showName = true,
+}) {
+  const slides = useMemo(() => (items || []).filter(it => it && (it.name || it.id)), [items])
   const [index, setIndex] = useState(0)
   const [outIndex, setOutIndex] = useState(null)
   const [hovered, setHovered] = useState(false)
@@ -48,8 +63,8 @@ export default function GameSlideshowTile({ games, isActive = true, onSelect }) 
   useEffect(() => {
     if (slides.length < 2) return
     const preloader = new Image()
-    preloader.src = gameArt(slides[(index + 1) % slides.length])
-  }, [index, slides])
+    preloader.src = artOf(slides[(index + 1) % slides.length])
+  }, [index, slides, artOf])
 
   if (slides.length === 0) return null
 
@@ -61,20 +76,21 @@ export default function GameSlideshowTile({ games, isActive = true, onSelect }) 
     <Tile
       className="home-slide-tile game-tile-banner"
       onClick={() => onSelect && onSelect(current)}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {outgoing && <SlideLayer key={`out-${outIndex}`} game={outgoing} state="out" />}
-      <SlideLayer key={`in-${safeIndex}`} game={current} state="in" />
+      {outgoing && <SlideLayer key={`out-${keyOf(outgoing)}`} item={outgoing} state="out" artOf={artOf} />}
+      <SlideLayer key={`in-${keyOf(current)}`} item={current} state="in" artOf={artOf} />
 
       <div className="home-slide-scrim" />
-      <div key={`name-${safeIndex}`} className="home-slide-name">{current.name}</div>
+      {showName && <div key={`name-${keyOf(current)}`} className="home-slide-name">{current.name}</div>}
 
       {slides.length > 1 && (
         slides.length <= MAX_DOTS ? (
           <div className="home-slide-dots">
-            {slides.map((g, i) => (
-              <span key={g.name} className={`home-slide-dot ${i === safeIndex ? 'active' : ''}`} />
+            {slides.map((it, i) => (
+              <span key={keyOf(it)} className={`home-slide-dot ${i === safeIndex ? 'active' : ''}`} />
             ))}
           </div>
         ) : (
