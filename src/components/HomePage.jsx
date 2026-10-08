@@ -399,6 +399,21 @@ const openExternal = (url, label) => {
     setShowListModal(true)
   }
 
+  const recentItems = useMemo(
+    () => [...allGames]
+      .filter(g => g.lastPlayed)
+      .sort((a, b) => b.lastPlayed - a.lastPlayed)
+      .slice(0, 5)
+      .map(g => ({ ...g, id: g.name })),
+    [allGames]
+  )
+
+  const openRecentList = (e) => {
+    e.preventDefault()
+    setListModalType('recent')
+    setShowListModal(true)
+  }
+
   const handleRomFileSelect = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -525,7 +540,18 @@ const openExternal = (url, label) => {
           )}
         </div>
         <div className="home-c1-r3">
-          {renderTile('c1-r3', 'Recente', <img src="./assets/icons/clock.png" alt="Recente" />)}
+          {recentItems.length > 0 ? (
+            <SlideshowTile
+              items={recentItems}
+              isActive={isActive}
+              onSelect={launchGameFromHome}
+              keyOf={(game) => game.id}
+              showName={false}
+              onContextMenu={openRecentList}
+            />
+          ) : (
+            renderTile('c1-r3', 'Recent', <img src="./assets/icons/clock.png" alt="Recent" />)
+          )}
         </div>
 
         {/* Center - ONE big tile 690x393 */}
@@ -630,11 +656,7 @@ const openExternal = (url, label) => {
       ) : (
         <CollectionPage
           title="Recent"
-          items={[...allGames]
-            .filter(g => g.lastPlayed)
-            .sort((a, b) => b.lastPlayed - a.lastPlayed)
-            .slice(0, 5)
-            .map(g => ({ ...g, id: g.name }))}
+          items={recentItems}
           onClose={() => setShowListModal(false)}
           onItemAction={(game) => { launchGameFromHome(game); setShowListModal(false) }}
           showPinButton
