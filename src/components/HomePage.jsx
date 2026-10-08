@@ -47,11 +47,11 @@ function detectSystem(filename) {
 }
 
 const subdomains = [
-  { id: 'ludaba', label: 'Ludaba', url: 'https://ludaba.panashe.co.za', icon: './assets/icons/controller.png' },
-  { id: 'dash', label: 'Dashboard', url: 'https://dash.panashe.co.za', icon: './assets/icons/system.png' },
-  { id: 'games', label: 'Games', url: 'https://games.panashe.co.za', icon: './assets/icons/controller.png' },
-  { id: 'blog', label: 'Blog', url: 'https://blog.panashe.co.za', icon: './assets/icons/pin.png' },
-  { id: 'desktop', label: 'Desktop', url: 'https://desktop.panashe.co.za', icon: './assets/icons/Preferences.png' },
+  { id: 'ludaba', label: 'Ludaba', url: 'https://ludaba.panashe.co.za', icon: './assets/icons/controller.png', preview: './assets/imgs/site-ludaba.jpg' },
+  { id: 'dash', label: 'Dashboard', url: 'https://dash.panashe.co.za', icon: './assets/icons/system.png', preview: './assets/imgs/site-dash.jpg' },
+  { id: 'games', label: 'Games', url: 'https://games.panashe.co.za', icon: './assets/icons/controller.png', preview: './assets/imgs/site-games.jpg' },
+  { id: 'blog', label: 'Blog', url: 'https://blog.panashe.co.za', icon: './assets/icons/pin.png', preview: './assets/imgs/site-blog.jpg' },
+  { id: 'desktop', label: 'Desktop', url: 'https://desktop.panashe.co.za', icon: './assets/icons/Preferences.png', preview: './assets/imgs/site-desktop.jpg' },
 ]
 
 export default function HomePage({ onOpenApp, isActive }) {
@@ -565,6 +565,23 @@ const openExternal = (url, label) => {
   }
 
   const renderSubdomainTile = (subdomain) => {
+    if (subdomain.preview) {
+      return (
+        <Tile
+          className="game-tile-banner"
+          onClick={() => handleOpenSubdomain(subdomain.url, subdomain.label)}
+        >
+          <img
+            src={subdomain.preview}
+            alt=""
+            className="game-tile-img"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
+          <div className="home-slide-scrim" />
+          <div className="home-slide-name">{subdomain.label}</div>
+        </Tile>
+      )
+    }
     return (
       <Tile
         label={subdomain.label}
