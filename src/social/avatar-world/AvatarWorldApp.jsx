@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../../navigation/navEngine'
+import { registerBackHandler, clearNavFocus } from '../../navigation/navEngine'
 import { playHoverSound } from '../../navigation/hoverSound'
 import { playSelectSound } from '../../navigation/sound'
+import { CATEGORIES } from './hub/categories'
+import { Person, Play, Rooms, Chats, Settings as SettingsIcon } from './hub/icons'
 import MyAvatarScreen from './hub/MyAvatarScreen'
 import AvatarSettings from './hub/AvatarSettings'
 
-const TABS = [
-  { id: 'play', label: 'Play' },
-  { id: 'avatar', label: 'My Avatar' },
-  { id: 'rooms', label: 'My Rooms' },
-  { id: 'chats', label: 'Chats' },
-  { id: 'settings', label: 'Settings' },
+const SOCIAL_SECTIONS = [
+  { id: 'play', label: 'Play', Icon: Play },
+  { id: 'rooms', label: 'My Rooms', Icon: Rooms },
+  { id: 'chats', label: 'Chats', Icon: Chats },
 ]
 
 function ComingSoon({ title, body }) {
@@ -24,14 +24,11 @@ function ComingSoon({ title, body }) {
 }
 
 export default function AvatarWorldApp({ onRequestMinimize, isWindowActive = true }) {
-  const [activeTab, setActiveTab] = useState('avatar')
+  const [view, setView] = useState('customize')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const rootRef = useRef(null)
-  const activeTabRef = useRef(activeTab)
   const minimizeRef = useRef(onRequestMinimize)
-
-  useEffect(() => {
-    activeTabRef.current = activeTab
-  }, [activeTab])
+  const controlsRef = useRef(null)
 
   useEffect(() => {
     minimizeRef.current = onRequestMinimize
@@ -43,67 +40,128 @@ export default function AvatarWorldApp({ onRequestMinimize, isWindowActive = tru
     return registerBackHandler(el, () => minimizeRef.current?.())
   }, [])
 
-  useEffect(() => {
-    return registerBumperHandler((delta) => {
-      const idx = TABS.findIndex((tab) => tab.id === activeTabRef.current)
-      const next = (idx + delta + TABS.length) % TABS.length
-      playSelectSound()
-      setActiveTab(TABS[next].id)
-      clearNavFocus()
-    })
-  }, [])
-
-  const handleTabClick = useCallback((id) => {
+  const goToGrid = useCallback(() => {
     playSelectSound()
-    setActiveTab(id)
+    setView('customize')
+    setSelectedCategory(null)
     clearNavFocus()
   }, [])
 
+  const selectCategory = useCallback((id) => {
+    playSelectSound()
+    setView('customize')
+    setSelectedCategory(id)
+    clearNavFocus()
+  }, [])
+
+  const showSection = useCallback((id) => {
+    playSelectSound()
+    setView(id)
+    setSelectedCategory(null)
+    clearNavFocus()
+  }, [])
+
+  const handleSave = () => {
+    playSelectSound()
+    controlsRef.current?.save?.()
+  }
+
+  const handleDiscard = () => {
+    playSelectSound()
+    controlsRef.current?.discard?.()
+  }
+
   return (
     <div ref={rootRef} className="aw-root">
-      <div className="aw-tab-rail">
-        <div className="aw-brand">Avatar World</div>
-        {TABS.map((tab) => (
-          <div
-            key={tab.id}
-            className={`aw-tab ${activeTab === tab.id ? 'aw-tab-active' : ''}`}
-            onMouseEnter={playHoverSound}
-            onClick={() => handleTabClick(tab.id)}
-          >
-            <span className="aw-tab-label">{tab.label}</span>
-          </div>
-        ))}
-        <div className="aw-rail-spacer" />
-        <div className="aw-rail-hint">LB / RB to switch</div>
-      </div>
+      <nav className="aw-rail" aria-label="Customize">
+        <button
+          type="button"
+          className={`aw-rail-btn aw-rail-mark ${view === 'customize' && !selectedCategory ? 'aw-rail-active' : ''}`}
+          title="Avatar"
+          onClick={goToGrid}
+          onMouseEnter={playHoverSound}
+        >
+          <Person size={24} />
+        </button>
 
-      <div className="aw-stage">
-        <div className={`aw-pane ${activeTab === 'avatar' ? 'aw-pane-active' : ''}`}>
-          <MyAvatarScreen active={activeTab === 'avatar' && isWindowActive} />
-        </div>
-        {activeTab === 'play' && (
-          <div className="aw-pane aw-pane-active">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            className={`aw-rail-btn ${view === 'customize' && selectedCategory === cat.id ? 'aw-rail-active' : ''}`}
+            title={cat.label}
+            onClick={() => selectCategory(cat.id)}
+            onMouseEnter={playHoverSound}
+          >
+            <cat.Icon size={22} />
+          </button>
+        ))}
+
+        <div className="aw-rail-spacer" />
+
+        {SOCIAL_SECTIONS.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            className={`aw-rail-btn ${view === section.id ? 'aw-rail-active' : ''}`}
+            title={section.label}
+            onClick={() => showSection(section.id)}
+            onMouseEnter={playHoverSound}
+          >
+            <section.Icon size={22} />
+          </button>
+        ))}
+
+        <button
+          type="button"
+          className={`aw-rail-btn aw-rail-settings ${view === 'settings' ? 'aw-rail-active' : ''}`}
+          title="Settings"
+          onClick={() => showSection('settings')}
+          onMouseEnter={playHoverSound}
+        >
+          <SettingsIcon size={22} />
+        </button>
+      </nav>
+
+      <div className="aw-main">
+        <header className="aw-topbar">
+          <span className="aw-topbar-title">Avatar World</span>
+          <div className="aw-topbar-actions">
+            <button type="button" className="aw-topbar-btn" onClick={handleSave} onMouseEnter={playHoverSound}>
+              Save
+            </button>
+            <button type="button" className="aw-topbar-btn" onClick={handleDiscard} onMouseEnter={playHoverSound}>
+              Discard
+            </button>
+          </div>
+        </header>
+
+        <div className="aw-content">
+          {view === 'customize' && (
+            <MyAvatarScreen
+              active={isWindowActive}
+              selectedCategory={selectedCategory}
+              onSelectCategory={selectCategory}
+              onShowGrid={goToGrid}
+              controlsRef={controlsRef}
+            />
+          )}
+
+          {view === 'settings' && <AvatarSettings active />}
+
+          {view === 'play' && (
             <ComingSoon
               title="Play"
               body="Jump into shared spaces and mini experiences with your avatar. This is where social play will live in a later phase."
             />
-          </div>
-        )}
-        {activeTab === 'rooms' && (
-          <div className="aw-pane aw-pane-active">
+          )}
+          {view === 'rooms' && (
             <ComingSoon title="My Rooms" body="Create and visit your own avatar rooms. Coming in a later phase." />
-          </div>
-        )}
-        {activeTab === 'chats' && (
-          <div className="aw-pane aw-pane-active">
+          )}
+          {view === 'chats' && (
             <ComingSoon title="Chats" body="Message and voice chat with friends. Coming in a later phase." />
-          </div>
-        )}
-        {activeTab === 'settings' && (
-          <div className="aw-pane aw-pane-active">
-            <AvatarSettings active={activeTab === 'settings'} />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

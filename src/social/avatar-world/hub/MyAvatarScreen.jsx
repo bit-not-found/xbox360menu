@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { playHoverSound } from '../../../navigation/hoverSound'
 import { playSelectSound } from '../../../navigation/sound'
+import { CATEGORIES, getCategory } from './categories'
+import { Import, Back } from './icons'
 
 const EXPRESSION_NAMES = ['happy', 'sad', 'angry', 'surprised', 'relaxed']
 const QUALITY_PROFILES = ['full', 'lite']
@@ -18,7 +20,7 @@ function formatBytes(bytes) {
   return `${value.toFixed(value >= 10 || unit <= 1 ? 0 : 1)} ${units[unit]}`
 }
 
-export default function MyAvatarScreen({ active }) {
+export default function MyAvatarScreen({ active, selectedCategory, onSelectCategory, onShowGrid, controlsRef }) {
   const containerRef = useRef(null)
   const handleRef = useRef(null)
   const moduleRef = useRef(null)
@@ -132,6 +134,25 @@ export default function MyAvatarScreen({ active }) {
     }
   }, [active, status])
 
+  // Expose Save / Discard to the top action bar.
+  useEffect(() => {
+    if (!controlsRef) return undefined
+    controlsRef.current = {
+      save: async () => {
+        await storeRef.current?.settings.requestPersistentStorage()
+        showNotice('Saved')
+      },
+      discard: () => {
+        handleRef.current?.resetExpressions()
+        setExpressions({})
+        showNotice('Reset')
+      },
+    }
+    return () => {
+      controlsRef.current = null
+    }
+  }, [controlsRef, showNotice])
+
   const applyLoaded = useCallback(async (record) => {
     const handle = handleRef.current
     const store = storeRef.current
@@ -244,50 +265,24 @@ export default function MyAvatarScreen({ active }) {
   }, [importFile])
 
   const isBusy = status === 'loading'
+  const category = selectedCategory ? getCategory(selectedCategory) : null
 
-  return (
-    <div className="aw-avatar-screen">
-      <div
-        className={`aw-viewport ${dragOver ? 'aw-viewport-drag' : ''}`}
-        ref={containerRef}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-      >
-        {isBusy && (
-          <div className="aw-overlay-panel">
-            <div className="aw-spinner" />
-            <span className="aw-overlay-text">
-              {progress > 0 ? `Optimizing… ${progress}%` : 'Loading avatar…'}
-            </span>
-          </div>
-        )}
-        {!isBusy && status === 'error' && (
-          <div className="aw-overlay-panel aw-overlay-error">
-            <span className="aw-overlay-text">{error}</span>
-          </div>
-        )}
-        {!isBusy && status !== 'error' && avatars.length === 0 && (
-          <div className="aw-overlay-panel aw-overlay-empty">
-            <span className="aw-overlay-text">No avatar yet.</span>
-            <span className="aw-overlay-sub">Import one from VRoid Studio → Export → VRM 1.0.</span>
-          </div>
-        )}
-        {notice && !isBusy && <div className="aw-toast">{notice}</div>}
-      </div>
-
-      <aside className="aw-sidebar">
-        <div className="aw-side-section">
-          <div className="aw-side-title">Import</div>
+  const renderDetail = (id) => {
+    if (id === 'dressup') {
+      return (
+        <>
           <button
             type="button"
-            className="aw-action aw-action-primary"
+            className="aw-action aw-action-primary aw-detail-import"
             onClick={() => { playSelectSound(); fileInputRef.current?.click() }}
             onMouseEnter={playHoverSound}
           >
-            Import .vrm
+            <Import size={18} />
+            <span>Import .vrm</span>
           </button>
-          <p className="aw-side-hint">Drag a .vrm onto the viewport, or export from VRoid Studio (Export → VRM, VRM 1.0).</p>
+          <p className="aw-side-hint">
+            Drag a .vrm onto the avatar, or export from VRoid Studio (Export → VRM, VRM 1.0).
+          </p>
           <input
             ref={fileInputRef}
             type="file"
@@ -299,9 +294,7 @@ export default function MyAvatarScreen({ active }) {
               if (file) importFile(file)
             }}
           />
-        </div>
 
-        <div className="aw-side-section">
           <div className="aw-side-title">Saved Avatars</div>
           {avatars.length === 0 && <div className="aw-side-empty">Nothing saved yet.</div>}
           <div className="aw-avatar-list">
@@ -329,61 +322,136 @@ export default function MyAvatarScreen({ active }) {
               </div>
             ))}
           </div>
-        </div>
+        </>
+      )
+    }
 
-        <div className="aw-side-section">
-          <div className="aw-side-title">Pose</div>
-          <div className="aw-chip-row">
+    if (id === 'expressions') {
+      return (
+        <div className="aw-chip-row">
+          {EXPRESSION_NAMES.map((name) => (
             <button
+              key={name}
               type="button"
-              className="aw-chip aw-chip-active"
-              onClick={() => handlePose('idle')}
+              className={`aw-chip ${expressions[name] ? 'aw-chip-active' : ''}`}
+              onClick={() => toggleExpression(name)}
               onMouseEnter={playHoverSound}
             >
-              Idle
+              {name}
             </button>
-          </div>
+          ))}
         </div>
+      )
+    }
 
-        <div className="aw-side-section">
-          <div className="aw-side-title">Expression</div>
-          <div className="aw-chip-row">
-            {EXPRESSION_NAMES.map((name) => (
-              <button
-                key={name}
-                type="button"
-                className={`aw-chip ${expressions[name] ? 'aw-chip-active' : ''}`}
-                onClick={() => toggleExpression(name)}
-                onMouseEnter={playHoverSound}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
+    if (id === 'poses') {
+      return (
+        <div className="aw-chip-row">
+          <button
+            type="button"
+            className="aw-chip aw-chip-active"
+            onClick={() => handlePose('idle')}
+            onMouseEnter={playHoverSound}
+          >
+            Idle
+          </button>
         </div>
+      )
+    }
 
-        <div className="aw-side-section">
-          <div className="aw-side-title">Quality</div>
-          <div className="aw-chip-row">
-            {QUALITY_PROFILES.map((profile) => (
-              <button
-                key={profile}
-                type="button"
-                className={`aw-chip ${quality === profile ? 'aw-chip-active' : ''}`}
-                onClick={() => handleQuality(profile)}
-                onMouseEnter={playHoverSound}
-              >
-                {profile === 'full' ? 'Full' : 'Lite'}
-              </button>
-            ))}
-          </div>
+    if (id === 'quality') {
+      return (
+        <div className="aw-chip-row">
+          {QUALITY_PROFILES.map((profile) => (
+            <button
+              key={profile}
+              type="button"
+              className={`aw-chip ${quality === profile ? 'aw-chip-active' : ''}`}
+              onClick={() => handleQuality(profile)}
+              onMouseEnter={playHoverSound}
+            >
+              {profile === 'full' ? 'Full' : 'Lite'}
+            </button>
+          ))}
         </div>
+      )
+    }
 
-        <div className="aw-side-section">
-          <div className="aw-side-title">Storage</div>
-          <StorageMeter storeRef={storeRef} active={active} />
-        </div>
-      </aside>
+    return <p className="aw-side-hint">Coming soon. This style isn’t customizable yet.</p>
+  }
+
+  return (
+    <div className="aw-customize">
+      <section className="aw-panel">
+        {!category ? (
+          <>
+            <div className="aw-panel-head">
+              <h2 className="aw-panel-title">Customize</h2>
+              <span className="aw-panel-sub">Pick a category</span>
+            </div>
+            <div className="aw-grid">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="aw-cat-card"
+                  onClick={() => onSelectCategory(c.id)}
+                  onMouseEnter={playHoverSound}
+                >
+                  <span className="aw-cat-icon">
+                    <c.Icon size={26} />
+                  </span>
+                  <span className="aw-cat-label">{c.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="aw-detail">
+            <button type="button" className="aw-detail-back" onClick={onShowGrid} onMouseEnter={playHoverSound}>
+              <Back size={16} />
+              <span>All categories</span>
+            </button>
+            <div className="aw-detail-head">
+              <span className="aw-detail-icon">
+                <category.Icon size={22} />
+              </span>
+              <h2 className="aw-panel-title">{category.label}</h2>
+            </div>
+            {renderDetail(category.id)}
+          </div>
+        )}
+      </section>
+
+      <div
+        className={`aw-stage ${dragOver ? 'aw-stage-drag' : ''}`}
+        ref={containerRef}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+      >
+        <div className="aw-floor" />
+        {isBusy && (
+          <div className="aw-overlay-panel">
+            <div className="aw-spinner" />
+            <span className="aw-overlay-text">
+              {progress > 0 ? `Optimizing… ${progress}%` : 'Loading avatar…'}
+            </span>
+          </div>
+        )}
+        {!isBusy && status === 'error' && (
+          <div className="aw-overlay-panel aw-overlay-error">
+            <span className="aw-overlay-text">{error}</span>
+          </div>
+        )}
+        {!isBusy && status !== 'error' && avatars.length === 0 && (
+          <div className="aw-overlay-panel">
+            <span className="aw-overlay-text">No avatar yet.</span>
+            <span className="aw-overlay-sub">Import one from VRoid Studio → Export → VRM 1.0.</span>
+          </div>
+        )}
+        {notice && !isBusy && <div className="aw-toast">{notice}</div>}
+      </div>
     </div>
   )
 }
@@ -398,36 +466,4 @@ function Thumbnail({ blob }) {
 
   if (!url) return <div className="aw-avatar-thumb aw-avatar-thumb-empty" />
   return <img className="aw-avatar-thumb" src={url} alt="" />
-}
-
-function StorageMeter({ storeRef, active }) {
-  const [usage, setUsage] = useState(null)
-
-  useEffect(() => {
-    if (!active) return undefined
-    let cancelled = false
-    const store = storeRef.current
-    if (!store) return undefined
-    const load = () => {
-      store.settings.getStorageUsage().then((value) => {
-        if (!cancelled) setUsage(value)
-      })
-    }
-    load()
-    const timer = setInterval(load, 4000)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
-    }
-  }, [storeRef, active])
-
-  if (!usage) return <div className="aw-side-empty">Usage unavailable.</div>
-  return (
-    <div className="aw-storage">
-      <span className="aw-storage-text">
-        {formatBytes(usage.usage)} of {formatBytes(usage.quota)}
-      </span>
-      <span className="aw-storage-text">{usage.persisted ? 'Persistent' : 'Best effort'}</span>
-    </div>
-  )
 }
