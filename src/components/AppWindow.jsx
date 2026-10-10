@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, cloneElement, isValidElement } from 'react'
 import { createPortal } from 'react-dom'
 import { Nostalgist } from 'nostalgist'
 import { useConfig } from '../context/ConfigContext'
@@ -425,7 +425,13 @@ export default function AppWindow({ app, onClose, onMinimize, minimized }) {
           )}
           {isInternal && app.component && (
             <div className="app-window-internal">
-              {app.component}
+              {isValidElement(app.component)
+                ? cloneElement(app.component, {
+                    onRequestMinimize: handleMinimize,
+                    onRequestClose: handleClose,
+                    isWindowActive: !minimized,
+                  })
+                : app.component}
             </div>
           )}
         </div>

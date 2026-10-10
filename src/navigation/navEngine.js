@@ -19,6 +19,7 @@ const BTN = {
 const OVERLAY_SCOPES = [
   '.modal-overlay',
   '.g360-overlay',
+  '.aw-root',
   '.controller-overlay',
   '.collection-overlay',
   '.visualizer-overlay',
@@ -74,6 +75,11 @@ const FOCUSABLE_SELECTOR = [
   '.music-letter-btn',
   '.music-track-fav-btn',
   '.music-album-play-btn',
+  '.aw-tab',
+  '.aw-action',
+  '.aw-avatar-item',
+  '.aw-avatar-delete',
+  '.aw-chip',
 ].join(',')
 
 const backHandlers = new Map()

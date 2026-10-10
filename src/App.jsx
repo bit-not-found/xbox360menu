@@ -256,7 +256,7 @@ function App() {
               {cat === 'home' ? (
                 <HomePage onOpenApp={openApp} isActive={index === activeCategory} />
               ) : cat === 'social' ? (
-                <SocialPage />
+                <SocialPage onOpenApp={openApp} />
               ) : cat === 'media' ? (
                 <VideoPage isActive={index === activeCategory} />
               ) : cat === 'games' ? (

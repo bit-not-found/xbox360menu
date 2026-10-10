@@ -5182,3 +5182,492 @@ select.nav-focused:focus {
 .music-album-play-btn.nav-focused {
   transform: scale(1.1);
 }
+
+/* ===== SOCIAL APPS HUB ===== */
+.sa-item-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.sa-item-tagline {
+  font-size: 0.68rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.g360-selected .sa-item-tagline {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.sa-item-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #888;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.sa-item-disabled {
+  opacity: 0.55;
+}
+
+/* ===== AVATAR WORLD ===== */
+.aw-root {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: #08090b;
+  color: #e6e6e6;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+.aw-tab-rail {
+  width: 92px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: linear-gradient(180deg, rgba(18, 22, 18, 1) 0%, rgba(8, 10, 8, 1) 100%);
+  border-right: 1px solid rgba(16, 124, 16, 0.25);
+}
+
+.aw-brand {
+  padding: 18px 10px 16px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #107c10;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.aw-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  cursor: pointer;
+  color: #777;
+  border-left: 3px solid transparent;
+  transition: background 0.15s, color 0.15s;
+}
+
+.aw-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ccc;
+}
+
+.aw-tab-active {
+  background: rgba(16, 124, 16, 0.15);
+  border-left-color: #107c10;
+  color: #fff;
+}
+
+.aw-tab-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.aw-rail-spacer {
+  flex: 1;
+}
+
+.aw-rail-hint {
+  padding: 12px 8px;
+  font-size: 0.6rem;
+  color: #444;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.aw-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.aw-pane {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+.aw-pane-active {
+  display: flex;
+}
+
+.aw-coming-soon {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 40px;
+}
+
+.aw-coming-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #107c10;
+  border: 1px solid rgba(16, 124, 16, 0.4);
+  padding: 4px 10px;
+}
+
+.aw-coming-title {
+  font-size: 1.8rem;
+  font-weight: 300;
+  color: #ddd;
+  margin: 0;
+}
+
+.aw-coming-body {
+  max-width: 460px;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.aw-avatar-screen {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.aw-viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: radial-gradient(ellipse at 50% 35%, #1b2230 0%, #0a0d12 60%, #05070a 100%);
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.aw-viewport:active {
+  cursor: grabbing;
+}
+
+.aw-viewport canvas {
+  display: block;
+}
+
+.aw-viewport-drag {
+  outline: 2px dashed #107c10;
+  outline-offset: -8px;
+}
+
+.aw-overlay-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+  text-align: center;
+  padding: 24px;
+}
+
+.aw-overlay-error .aw-overlay-text {
+  color: #ff7a7a;
+}
+
+.aw-overlay-text {
+  font-size: 0.95rem;
+  color: #cfcfcf;
+}
+
+.aw-overlay-sub {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.aw-overlay-empty {
+  pointer-events: none;
+}
+
+.aw-spinner {
+  width: 42px;
+  height: 42px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #107c10;
+  border-radius: 50%;
+  animation: awSpin 0.9s linear infinite;
+}
+
+@keyframes awSpin {
+  to { transform: rotate(360deg); }
+}
+
+.aw-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: rgba(16, 124, 16, 0.92);
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 8px 16px;
+  border-radius: 2px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+
+.aw-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: rgba(12, 14, 12, 0.98);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.aw-sidebar::-webkit-scrollbar { width: 4px; }
+.aw-sidebar::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+.aw-side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aw-side-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #5f5f5f;
+}
+
+.aw-side-hint {
+  font-size: 0.72rem;
+  color: #555;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.aw-side-empty {
+  font-size: 0.78rem;
+  color: #555;
+}
+
+.aw-file-input {
+  display: none;
+}
+
+.aw-action {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ddd;
+  font-size: 0.82rem;
+  padding: 9px 14px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.aw-action:hover,
+.aw-action.nav-focused {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(16, 124, 16, 0.6);
+}
+
+.aw-action-primary {
+  background: #107c10;
+  border-color: #107c10;
+  color: #fff;
+  font-weight: 600;
+}
+
+.aw-action-primary:hover,
+.aw-action-primary.nav-focused {
+  background: #138d13;
+}
+
+.aw-avatar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aw-avatar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.aw-avatar-item:hover,
+.aw-avatar-item.nav-focused {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.aw-avatar-active {
+  border-color: rgba(16, 124, 16, 0.6);
+  background: rgba(16, 124, 16, 0.12);
+}
+
+.aw-avatar-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #000;
+}
+
+.aw-avatar-thumb-empty {
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.aw-avatar-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.aw-avatar-name {
+  font-size: 0.82rem;
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aw-avatar-size {
+  font-size: 0.68rem;
+  color: #666;
+}
+
+.aw-avatar-delete {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.aw-avatar-item:hover .aw-avatar-delete,
+.aw-avatar-delete.nav-focused {
+  opacity: 1;
+}
+
+.aw-avatar-delete:hover {
+  color: #ff5555;
+}
+
+.aw-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.aw-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #aaa;
+  font-size: 0.74rem;
+  text-transform: capitalize;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.aw-chip:hover,
+.aw-chip.nav-focused {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.aw-chip-active {
+  background: rgba(16, 124, 16, 0.25);
+  border-color: #107c10;
+  color: #fff;
+}
+
+.aw-storage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aw-storage-text {
+  font-size: 0.72rem;
+  color: #666;
+}
+
+.aw-settings {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.aw-settings-title {
+  font-size: 1.5rem;
+  font-weight: 300;
+  margin: 0;
+  color: #eee;
+}
+
+.aw-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 18px;
+}
+
+.aw-settings-section h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  color: #cfcfcf;
+}
+
+.aw-settings-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #777;
+  line-height: 1.5;
+}
+
+.aw-settings-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.82rem;
+  color: #999;
+  line-height: 1.7;
+}
