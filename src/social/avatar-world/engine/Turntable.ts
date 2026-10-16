@@ -8,7 +8,7 @@ export interface TurntableOptions {
   onPointer?: (normalizedX: number, normalizedY: number) => void
 }
 
-const ROTATE_SPEED = 0.008
+const ORBIT_SPEED = 0.008
 const GAMEPAD_DEADZONE = 0.18
 
 function clamp(value: number, min: number, max: number): number {
@@ -20,10 +20,10 @@ export class Turntable {
   yaw = 0
   pitch = 0.08
   distance = 3
-  minDistance = 0.6
+  minDistance = 0.15
   maxDistance = 40
-  minPitch = -0.5
-  maxPitch = 1.1
+  minPitch = -0.7
+  maxPitch = 1.25
   enabled = true
 
   private readonly camera: PerspectiveCamera
@@ -31,12 +31,20 @@ export class Turntable {
   private readonly options: Required<Pick<TurntableOptions, 'autoRotateSpeed' | 'idleDelay' | 'enableGamepad'>>
   private readonly onPointerCallback?: (x: number, y: number) => void
   private readonly pointers = new Map<number, { x: number; y: number }>()
+  private readonly basePivot = new THREE.Vector3(0, 1, 0)
+  private frameRadius = 1
   private dragging = false
+  private panning = false
   private lastX = 0
   private lastY = 0
   private pinchDistance = 0
+  private lastMidX = 0
+  private lastMidY = 0
   private idleTime = 0
   private detachFns: Array<() => void> = []
+  private readonly tmpRight = new THREE.Vector3()
+  private readonly tmpUp = new THREE.Vector3()
+  private readonly tmpForward = new THREE.Vector3()
 
   constructor(camera: PerspectiveCamera, element: HTMLElement, options: TurntableOptions = {}) {
     this.camera = camera
@@ -87,10 +95,15 @@ export class Turntable {
     }
     if (this.pointers.size === 1) {
       this.dragging = true
+      this.panning = e.button === 2 || e.shiftKey
       this.lastX = e.clientX
       this.lastY = e.clientY
     } else if (this.pointers.size === 2) {
+      this.dragging = false
       this.pinchDistance = this.currentPinchDistance()
+      const mid = this.currentMidpoint()
+      this.lastMidX = mid.x
+      this.lastMidY = mid.y
     }
     this.idleTime = 0
   }
@@ -109,6 +122,13 @@ export class Turntable {
         this.distance = this.clampDistance(this.distance * (this.pinchDistance / next))
       }
       this.pinchDistance = next
+
+      const mid = this.currentMidpoint()
+      if (this.lastMidX !== 0 || this.lastMidY !== 0) {
+        this.panBy(mid.x - this.lastMidX, mid.y - this.lastMidY)
+      }
+      this.lastMidX = mid.x
+      this.lastMidY = mid.y
       this.idleTime = 0
       return
     }
@@ -118,15 +138,27 @@ export class Turntable {
     const dy = e.clientY - this.lastY
     this.lastX = e.clientX
     this.lastY = e.clientY
-    this.yaw -= dx * ROTATE_SPEED
-    this.pitch = clamp(this.pitch + dy * ROTATE_SPEED, this.minPitch, this.maxPitch)
+
+    if (this.panning) {
+      this.panBy(dx, dy)
+    } else {
+      this.yaw -= dx * ORBIT_SPEED
+      this.pitch = clamp(this.pitch + dy * ORBIT_SPEED, this.minPitch, this.maxPitch)
+    }
     this.idleTime = 0
   }
 
   private onPointerUp(e: PointerEvent): void {
     this.pointers.delete(e.pointerId)
-    if (this.pointers.size < 2) this.pinchDistance = 0
-    if (this.pointers.size === 0) this.dragging = false
+    if (this.pointers.size < 2) {
+      this.pinchDistance = 0
+      this.lastMidX = 0
+      this.lastMidY = 0
+    }
+    if (this.pointers.size === 0) {
+      this.dragging = false
+      this.panning = false
+    }
     try {
       this.element.releasePointerCapture(e.pointerId)
     } catch {
@@ -137,7 +169,7 @@ export class Turntable {
   private onWheel(e: WheelEvent): void {
     if (!this.enabled) return
     e.preventDefault()
-    this.distance = this.clampDistance(this.distance * Math.exp(e.deltaY * 0.001))
+    this.distance = this.clampDistance(this.distance * Math.exp(e.deltaY * 0.0012))
     this.idleTime = 0
   }
 
@@ -156,6 +188,41 @@ export class Turntable {
     return Math.hypot(a.x - b.x, a.y - b.y)
   }
 
+  private currentMidpoint(): { x: number; y: number } {
+    const pts = Array.from(this.pointers.values())
+    if (pts.length < 2) return { x: 0, y: 0 }
+    let sx = 0
+    let sy = 0
+    for (const p of pts) {
+      sx += p.x
+      sy += p.y
+    }
+    return { x: sx / pts.length, y: sy / pts.length }
+  }
+
+  // Move the look-at point in camera space so the user can slide up/down (and
+  // side to side) the model to frame details, independent of orbit.
+  private panBy(dxScreen: number, dyScreen: number): void {
+    const rect = this.element.getBoundingClientRect()
+    if (rect.height === 0) return
+    const worldPerPixel =
+      (2 * this.distance * Math.tan((this.camera.fov * Math.PI) / 360)) / rect.height
+
+    this.camera.updateMatrixWorld()
+    this.camera.matrixWorld.extractBasis(this.tmpRight, this.tmpUp, this.tmpForward)
+
+    this.pivot.addScaledVector(this.tmpRight, -dxScreen * worldPerPixel)
+    this.pivot.addScaledVector(this.tmpUp, dyScreen * worldPerPixel)
+    this.clampPivot()
+  }
+
+  private clampPivot(): void {
+    const extent = this.frameRadius * 1.25
+    this.pivot.x = clamp(this.pivot.x, this.basePivot.x - extent, this.basePivot.x + extent)
+    this.pivot.y = clamp(this.pivot.y, this.basePivot.y - extent, this.basePivot.y + extent)
+    this.pivot.z = clamp(this.pivot.z, this.basePivot.z - extent, this.basePivot.z + extent)
+  }
+
   private clampDistance(value: number): number {
     return clamp(value, this.minDistance, this.maxDistance)
   }
@@ -165,15 +232,18 @@ export class Turntable {
     const box = new THREE.Box3().setFromObject(object)
     if (box.isEmpty()) return
     box.getCenter(this.pivot)
+    this.basePivot.copy(this.pivot)
     const sphere = box.getBoundingSphere(new THREE.Sphere())
     const radius = Math.max(sphere.radius, 0.4)
+    this.frameRadius = radius
 
     const vFov = (this.camera.fov * Math.PI) / 180
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.camera.aspect)
     const fit = Math.max(radius / Math.sin(vFov / 2), radius / Math.sin(hFov / 2))
 
     this.distance = this.clampDistance(fit * padding)
-    this.minDistance = radius * 0.8
+    // Allow getting in very close for detail inspection, but never inside the model.
+    this.minDistance = Math.max(radius * 0.1, 0.05)
     this.maxDistance = radius * 8
     this.pitch = 0.08
     this.apply()

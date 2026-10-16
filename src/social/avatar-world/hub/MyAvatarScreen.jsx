@@ -444,12 +444,6 @@ export default function MyAvatarScreen({ active, selectedCategory, onSelectCateg
             <span className="aw-overlay-text">{error}</span>
           </div>
         )}
-        {!isBusy && status !== 'error' && avatars.length === 0 && (
-          <div className="aw-overlay-panel">
-            <span className="aw-overlay-text">No avatar yet.</span>
-            <span className="aw-overlay-sub">Import one from VRoid Studio → Export → VRM 1.0.</span>
-          </div>
-        )}
         {notice && !isBusy && <div className="aw-toast">{notice}</div>}
       </div>
     </div>
