@@ -4,7 +4,7 @@ import { registerBackHandler, registerBumperHandler, clearNavFocus } from '../na
 import { playHoverSound } from '../navigation/hoverSound'
 import { playSelectSound, playBackSound } from '../navigation/sound'
 import { SOCIAL_APPS, SOCIAL_APP_GROUPS, SOCIAL_BLADE_LABEL } from './registry'
-import AvatarWorldApp from './avatar-world/AvatarWorldApp'
+import { buildAppDescriptor } from './appDescriptor'
 
 function buildRows() {
   const rows = []
@@ -24,16 +24,6 @@ function buildRows() {
 }
 
 const HUB_ROWS = buildRows()
-
-function buildAppDescriptor(entry) {
-  return {
-    id: `social-${entry.id}`,
-    label: entry.title,
-    url: `social://${entry.id}`,
-    type: 'internal',
-    component: entry.id === 'avatar-world' ? <AvatarWorldApp appId={entry.id} /> : null,
-  }
-}
 
 export default function SocialAppsHub({ onClose, onOpenApp }) {
   const [isClosing, setIsClosing] = useState(false)

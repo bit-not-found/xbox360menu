@@ -621,11 +621,13 @@
 /* ===== SOCIAL PAGE GRID ===== */
 .social-grid {
   display: grid;
-  grid-template-columns: 260px;
-  grid-template-rows: repeat(3, 165px);
+  grid-template-columns: 260px minmax(360px, 1fr);
+  grid-template-rows: repeat(4, 148px);
   gap: 3px;
   align-self: center;
   padding: 10px;
+  width: min(980px, 100%);
+  box-sizing: border-box;
 }
 
 .social-left-1 {
@@ -641,6 +643,46 @@
 .social-left-3 {
   grid-column: 1;
   grid-row: 3;
+}
+
+.social-left-4 {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.social-stage {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  position: relative;
+  pointer-events: none;
+}
+
+/* Transparent VRM avatar overlay (mounted by src/vrm-stage.js).
+   Fade + slide share the page blade's 0.5s easing so avatars enter and exit with the tiles. */
+#vrm-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  transform: translateX(28px);
+  transition: opacity 0.5s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.social-stage-ready.social-stage-active #vrm-canvas {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #vrm-canvas {
+    transition: none;
+    transform: none;
+  }
 }
 
 .social-grid .tile {

@@ -18,6 +18,14 @@ export class Animator {
   private readonly loader: GLTFLoader
   private readonly actions = new Map<string, THREE.AnimationAction>()
   private current: THREE.AnimationAction | null = null
+  private oneShot: { action: THREE.AnimationAction; onFinished: () => void } | null = null
+
+  private readonly onMixerFinished = (event: { action: THREE.AnimationAction }): void => {
+    if (!this.oneShot || event.action !== this.oneShot.action) return
+    const callback = this.oneShot.onFinished
+    this.oneShot = null
+    callback()
+  }
 
   constructor(
     private readonly vrm: VRM,
@@ -25,6 +33,7 @@ export class Animator {
   ) {
     this.loader = new GLTFLoader()
     this.loader.register((parser) => new VRMAnimationLoaderPlugin(parser))
+    this.mixer.addEventListener('finished', this.onMixerFinished)
   }
 
   get currentName(): string | null {
@@ -75,6 +84,43 @@ export class Animator {
     return true
   }
 
+  /** Register an already-built clip (e.g. a retargeted BVH motion) under a name. */
+  addClip(name: string, clip: THREE.AnimationClip): boolean {
+    if (this.actions.has(name)) return true
+    if (clip.tracks.length === 0) return false
+    this.actions.set(name, this.mixer.clipAction(clip))
+    return true
+  }
+
+  /** Play a clip once (clamped on the last frame), then report back so the caller can return to idle. */
+  playOnce(name: string, options: { fade?: number; onFinished?: () => void } = {}): boolean {
+    const next = this.actions.get(name)
+    if (!next) return false
+
+    const fade = options.fade ?? 0.3
+    next.enabled = true
+    next.setLoop(THREE.LoopOnce, 1)
+    next.clampWhenFinished = true
+    next.reset().setEffectiveWeight(1)
+
+    if (this.current && this.current !== next) {
+      next.crossFadeFrom(this.current, fade, false)
+    } else {
+      next.fadeIn(fade)
+    }
+    next.play()
+    this.current = next
+
+    if (options.onFinished) {
+      this.oneShot = { action: next, onFinished: options.onFinished }
+    }
+    return true
+  }
+
+  getDuration(name: string): number {
+    return this.actions.get(name)?.getClip().duration ?? 0
+  }
+
   stop(fade = 0.2): void {
     if (!this.current) return
     this.current.fadeOut(fade)
@@ -86,6 +132,8 @@ export class Animator {
   }
 
   dispose(): void {
+    this.mixer.removeEventListener('finished', this.onMixerFinished)
+    this.oneShot = null
     this.mixer.stopAllAction()
     for (const action of this.actions.values()) {
       action.stop()

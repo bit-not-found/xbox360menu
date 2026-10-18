@@ -1,0 +1,12 @@
+Head:
+/speak voice={{char}} Example Text! | /popup <h3> {{char}} <h3> "Example Text" [Emoji]
+Chest:
+/speak voice={{char}} Example Text! | /popup <h3>{{char}} <h3> "Example Text" [Emoji]
+Hands:
+/speak voice={{char}} Example Text?. | /popup <h3> {{char}} <h3> "Example Text" [Emoji]
+Groin/Butt: 
+/speak voice={{char}} Example Text. | /popup <h3> {{char}} <h3> "Example Text" [Emoji]
+Legs:
+/speak voice={{char}} Example Text?. | /popup <h3> {{char}} <h3> "Example Text"  [Emoji]
+Feet:
+/speak voice={{char}} Example Text? | /popup <h3> {{char}} <h3> "Example Text"  [Emoji]

@@ -27,6 +27,7 @@ export class Avatar {
   update(delta: number): void {
     this.animator.update(delta)
     this.expressions.update(delta)
+    this.lookAt.update(delta)
     this.vrm.update(delta)
   }
 
